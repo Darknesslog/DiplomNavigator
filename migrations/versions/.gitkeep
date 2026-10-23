@@ -1,0 +1,2 @@
+# Каталог миграций Alembic. Файлы .py здесь создаются командой
+# alembic revision --autogenerate -m "описание"
