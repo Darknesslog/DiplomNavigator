@@ -19,13 +19,16 @@ RUN uv sync --frozen --no-dev
 FROM python:3.12-slim AS runtime
 WORKDIR /app
 
-# libpq5 — системная библиотека C, необходимая для работы драйвера psycopg2
+# libpq5 — системная библиотека C, необходимая для работы драйвера psycopg
 RUN apt-get update && apt-get install -y --no-install-recommends libpq5 \
     && rm -rf /var/lib/apt/lists/*
 
 # Копируем готовое виртуальное окружение и код из первого этапа
 COPY --from=builder /app/.venv /app/.venv
 COPY --from=builder /app/app /app/app
+# Миграции и конфиг Alembic: без них `alembic upgrade head` в контейнере не запустится
+COPY --from=builder /app/migrations /app/migrations
+COPY --from=builder /app/alembic.ini /app/alembic.ini
 
 ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONUNBUFFERED=1

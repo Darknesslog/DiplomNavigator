@@ -1,0 +1,186 @@
+// Схема DiplomNavigator для dbdiagram.io
+// Сгенерировано scripts/dump_docs.py из app/models — правьте модели.
+
+Table academic_periods [note: 'Периоды учебного года, в рамках которых выбираются темы'] {
+  id bigint [pk, note: 'Первичный ключ']
+  name varchar(100) [unique, note: 'Отображаемое имя, например «Весна 2027»']
+  academic_year integer [note: 'Учебный год, в который входит период (2026 = 2026/2027)']
+  semester varchar(16) [note: 'Осенний или весенний']
+  starts_on date [note: 'Первый день периода']
+  ends_on date [note: 'Последний день периода']
+  application_opens_at timestamptz [note: 'Когда открывается подача заявок']
+  application_closes_at timestamptz [note: 'Когда подача заявок закрывается']
+  status varchar(32) [note: 'draft / open / closed / archived']
+  created_at timestamptz [note: 'Когда запись создана']
+  updated_at timestamptz [note: 'Когда запись последний раз менялась']
+}
+
+Table faculties [note: 'Факультеты и институты'] {
+  id bigint [pk, note: 'Первичный ключ']
+  name varchar(200) [unique, note: 'Полное название факультета']
+  short_name varchar(30) [unique, note: 'Аббревиатура для интерфейса']
+  created_at timestamptz [note: 'Когда запись создана']
+  updated_at timestamptz [note: 'Когда запись последний раз менялась']
+}
+
+Table users [note: 'Учётные записи пользователей'] {
+  id bigint [pk, note: 'Первичный ключ']
+  last_name varchar(100) [note: 'Фамилия']
+  first_name varchar(100) [note: 'Имя']
+  middle_name varchar(100) [null, note: 'Отчество, если есть']
+  email varchar(255) [note: 'Логин и адрес для писем']
+  password_hash varchar(255) [note: 'Хэш пароля (argon2/bcrypt), не сам пароль']
+  role varchar(32) [note: 'Роль: student / nauchruk / zavkaf / admin']
+  is_active boolean [note: 'Может ли входить в систему']
+  last_login_at timestamptz [null, note: 'Последний успешный вход']
+  failed_login_attempts integer [note: 'Неудачные попытки входа']
+  locked_until timestamptz [null, note: 'Вход заблокирован до (UTC)']
+  created_at timestamptz [note: 'Когда запись создана']
+  updated_at timestamptz [note: 'Когда запись последний раз менялась']
+}
+
+Table departments [note: 'Кафедры'] {
+  id bigint [pk, note: 'Первичный ключ']
+  faculty_id bigint [note: 'Факультет, к которому относится кафедра']
+  name varchar(200) [note: 'Полное название кафедры']
+  short_name varchar(30) [unique, note: 'Аббревиатура кафедры']
+  created_at timestamptz [note: 'Когда запись создана']
+  updated_at timestamptz [note: 'Когда запись последний раз менялась']
+}
+
+Table notifications [note: 'Уведомления пользователей'] {
+  id bigint [pk, note: 'Первичный ключ']
+  user_id bigint [note: 'Получатель']
+  kind varchar(50) [note: 'Тип события, например application_approved']
+  title varchar(200) [note: 'Заголовок']
+  body text [null, note: 'Текст уведомления']
+  payload text [null, note: 'Служебные данные события']
+  is_read boolean [note: 'Прочитано ли']
+  created_at timestamptz [note: 'Когда создано']
+  read_at timestamptz [null, note: 'Когда прочитано']
+}
+
+Table study_groups [note: 'Учебные группы'] {
+  id bigint [pk, note: 'Первичный ключ']
+  faculty_id bigint [note: 'Факультет группы']
+  name varchar(50) [unique, note: 'Название группы, например ИУ7-41Б']
+  enrollment_year smallint [note: 'Год поступления группы']
+  created_at timestamptz [note: 'Когда запись создана']
+  updated_at timestamptz [note: 'Когда запись последний раз менялась']
+}
+
+Table students [note: 'Студенты'] {
+  id bigint [pk, note: 'Первичный ключ']
+  user_id bigint [unique, note: 'Учётная запись студента']
+  group_id bigint [note: 'Учебная группа']
+  department_id bigint [null, note: 'Кафедра; NULL для ещё не распределённых студентов']
+  record_book_number varchar(20) [unique, null, note: 'Номер зачётной книжки']
+  admission_year smallint [null, note: 'Год поступления']
+  created_at timestamptz [note: 'Когда запись создана']
+  updated_at timestamptz [note: 'Когда запись последний раз менялась']
+}
+
+Table teachers [note: 'Преподаватели и научные руководители'] {
+  id bigint [pk, note: 'Первичный ключ']
+  user_id bigint [unique, note: 'Учётная запись преподавателя']
+  department_id bigint [note: 'Кафедра']
+  position varchar(100) [null, note: 'Должность: доцент, профессор, ассистент']
+  academic_degree varchar(100) [null, note: 'Учёная степень и звание']
+  max_students smallint [note: 'Сколько студентов одновременно может вести']
+  is_available boolean [note: 'Показывать ли в списке доступных руководителей']
+  created_at timestamptz [note: 'Когда запись создана']
+  updated_at timestamptz [note: 'Когда запись последний раз менялась']
+}
+
+Table topics [note: 'Темы выпускных квалификационных работ'] {
+  id bigint [pk, note: 'Первичный ключ']
+  period_id bigint [note: 'Период, в котором тема доступна']
+  supervisor_id bigint [note: 'Научный руководитель']
+  department_id bigint [null, note: 'Кафедра, за которой закреплена тема']
+  created_by_user_id bigint [note: 'Кто создал карточку темы']
+  proposed_by_student_id bigint [null, note: 'Студент, если тему предложил он сам']
+  title varchar(500) [note: 'Формулировка темы']
+  description text [null, note: 'Описание, задачи, ожидаемый результат']
+  status varchar(32) [note: 'draft / published / rejected / archived']
+  source varchar(32) [note: 'Кто предложил: преподаватель, студент или компания']
+  company_name varchar(200) [null, note: 'Организация, если тема от предприятия']
+  max_students smallint [note: 'Сколько студентов можно закрепить на тему']
+  published_at timestamptz [null, note: 'Когда тема стала видна студентам']
+  created_at timestamptz [note: 'Когда запись создана']
+  updated_at timestamptz [note: 'Когда запись последний раз менялась']
+}
+
+Table applications [note: 'Заявки студентов на темы'] {
+  id bigint [pk, note: 'Первичный ключ']
+  student_id bigint [note: 'Кто подал заявку']
+  topic_id bigint [note: 'На какую тему']
+  status varchar(32) [note: 'pending / approved / rejected / withdrawn']
+  motivation text [null, note: 'Почему студент хочет эту тему']
+  decided_by_user_id bigint [null, note: 'Кто принял решение по заявке']
+  decided_at timestamptz [null, note: 'Когда принято решение']
+  decision_comment text [null, note: 'Комментарий к решению']
+  created_at timestamptz [note: 'Когда запись создана']
+  updated_at timestamptz [note: 'Когда запись последний раз менялась']
+}
+
+Table assignments [note: 'Итоговые закрепления тем за студентами'] {
+  id bigint [pk, note: 'Первичный ключ']
+  student_id bigint [note: 'Студент']
+  topic_id bigint [note: 'Тема']
+  supervisor_id bigint [note: 'Научный руководитель на момент закрепления']
+  status varchar(32) [note: 'active / completed / cancelled']
+  assigned_at timestamptz [note: 'Когда тема закреплена']
+  order_number varchar(50) [null, note: 'Номер приказа о закреплении тем']
+  order_date date [null, note: 'Дата приказа']
+  cancel_reason text [null, note: 'Причина отмены закрепления']
+  created_at timestamptz [note: 'Когда запись создана']
+  updated_at timestamptz [note: 'Когда запись последний раз менялась']
+}
+
+Table application_status_history [note: 'История изменения статусов заявок'] {
+  id bigint [pk, note: 'Первичный ключ']
+  application_id bigint [note: 'Заявка']
+  from_status varchar(32) [null, note: 'Предыдущий статус, NULL для создания заявки']
+  to_status varchar(32) [note: 'Новый статус']
+  changed_by_user_id bigint [null, note: 'Кто изменил статус']
+  comment text [null, note: 'Причина перехода']
+  created_at timestamptz [note: 'Когда произошёл переход']
+}
+
+Table attachments [note: 'Файлы, прикреплённые к темам и заявкам'] {
+  id bigint [pk, note: 'Первичный ключ']
+  topic_id bigint [null, note: 'Тема-владелец файла']
+  application_id bigint [null, note: 'Заявка-владелец файла']
+  original_name varchar(255) [note: 'Имя файла, которое видел пользователь']
+  storage_key varchar(500) [unique, note: 'Путь/ключ в хранилище (S3, диск)']
+  mime_type varchar(100) [null, note: 'MIME-тип']
+  size_bytes bigint [note: 'Размер в байтах']
+  uploaded_by_user_id bigint [null, note: 'Кто загрузил']
+  created_at timestamptz [note: 'Когда запись создана']
+  updated_at timestamptz [note: 'Когда запись последний раз менялась']
+}
+
+Ref: departments.faculty_id > faculties.id
+Ref: notifications.user_id > users.id
+Ref: study_groups.faculty_id > faculties.id
+Ref: students.user_id > users.id
+Ref: students.group_id > study_groups.id
+Ref: students.department_id > departments.id
+Ref: teachers.user_id > users.id
+Ref: teachers.department_id > departments.id
+Ref: topics.period_id > academic_periods.id
+Ref: topics.supervisor_id > teachers.id
+Ref: topics.department_id > departments.id
+Ref: topics.created_by_user_id > users.id
+Ref: topics.proposed_by_student_id > students.id
+Ref: applications.student_id > students.id
+Ref: applications.topic_id > topics.id
+Ref: applications.decided_by_user_id > users.id
+Ref: assignments.student_id > students.id
+Ref: assignments.topic_id > topics.id
+Ref: assignments.supervisor_id > teachers.id
+Ref: application_status_history.application_id > applications.id
+Ref: application_status_history.changed_by_user_id > users.id
+Ref: attachments.topic_id > topics.id
+Ref: attachments.application_id > applications.id
+Ref: attachments.uploaded_by_user_id > users.id
