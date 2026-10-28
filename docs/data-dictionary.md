@@ -42,9 +42,9 @@
 Проверки:
 
 - `ck_academic_periods_application_window`: `application_closes_at > application_opens_at`
-- `ck_academic_periods_semester`: `academic_periods.semester IN ('autumn', 'spring')`
 - `ck_academic_periods_period_status`: `academic_periods.status IN ('draft', 'open', 'closed', 'archived')`
 - `ck_academic_periods_dates_order`: `ends_on >= starts_on`
+- `ck_academic_periods_semester`: `academic_periods.semester IN ('autumn', 'spring')`
 
 ## faculties
 
@@ -70,15 +70,17 @@
 | middle_name | `VARCHAR(100)` | да | — | — | Отчество, если есть |
 | email | `VARCHAR(255)` | нет | — | — | Логин и адрес для писем |
 | password_hash | `VARCHAR(255)` | нет | — | — | Хэш пароля (argon2/bcrypt), не сам пароль |
-| role | `VARCHAR(32)` | нет | — | — | Роль: student / teacher / admin |
+| role | `VARCHAR(32)` | нет | — | — | Роль: student / nauchruk / zavkaf / admin |
 | is_active | `BOOLEAN` | нет | true | — | Может ли входить в систему |
 | last_login_at | `TIMESTAMP WITH TIME ZONE` | да | — | — | Последний успешный вход |
+| failed_login_attempts | `INTEGER` | нет | 0 | — | Неудачные попытки входа |
+| locked_until | `TIMESTAMP WITH TIME ZONE` | да | — | — | Вход заблокирован до (UTC) |
 | created_at | `TIMESTAMP WITH TIME ZONE` | нет | now() | — | Когда запись создана |
 | updated_at | `TIMESTAMP WITH TIME ZONE` | нет | now() | — | Когда запись последний раз менялась |
 
 Проверки:
 
-- `ck_users_user_role`: `users.role IN ('student', 'teacher', 'admin')`
+- `ck_users_user_role`: `users.role IN ('student', 'nauchruk', 'zavkaf', 'admin')`
 
 Индексы:
 
@@ -147,6 +149,7 @@
 | **id** | `BIGINT` | нет | identity | — | PK. Первичный ключ |
 | **user_id** | `BIGINT` | нет | — | users.id | UNIQUE. Учётная запись студента |
 | group_id | `BIGINT` | нет | — | study_groups.id | Учебная группа |
+| department_id | `BIGINT` | да | — | departments.id | Кафедра; NULL для ещё не распределённых студентов |
 | **record_book_number** | `VARCHAR(20)` | да | — | — | UNIQUE. Номер зачётной книжки |
 | admission_year | `SMALLINT` | да | — | — | Год поступления |
 | created_at | `TIMESTAMP WITH TIME ZONE` | нет | now() | — | Когда запись создана |
@@ -154,6 +157,7 @@
 
 Индексы:
 
+- `ix_students_department_id` (department_id)
 - `ix_students_group_id` (group_id)
 
 ## teachers
@@ -200,9 +204,9 @@
 
 Проверки:
 
-- `ck_topics_topic_status`: `topics.status IN ('draft', 'published', 'rejected', 'archived')`
 - `ck_topics_topic_source`: `topics.source IN ('teacher', 'student', 'company')`
 - `ck_topics_max_students_positive`: `max_students > 0`
+- `ck_topics_topic_status`: `topics.status IN ('draft', 'published', 'rejected', 'archived')`
 
 Индексы:
 

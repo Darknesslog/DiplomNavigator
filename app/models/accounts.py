@@ -3,12 +3,29 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Index, SmallInteger, String, func, text
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    SmallInteger,
+    String,
+    func,
+    text,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, IdMixin, TimestampMixin
 from app.models.enums import UserRole, db_enum
+
+if TYPE_CHECKING:
+    from app.models.misc import Notification
+    from app.models.refs import Department, StudyGroup
+    from app.models.topic import Topic
+    from app.models.workflow import Application, Assignment
 
 
 class User(IdMixin, TimestampMixin, Base):
@@ -37,13 +54,19 @@ class User(IdMixin, TimestampMixin, Base):
     role: Mapped[UserRole] = mapped_column(
         db_enum(UserRole, "user_role"),
         nullable=False,
-        comment="Роль: student / teacher / admin",
+        comment="Роль: student / nauchruk / zavkaf / admin",
     )
     is_active: Mapped[bool] = mapped_column(
         Boolean, nullable=False, server_default=text("true"), comment="Может ли входить в систему"
     )
     last_login_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True, comment="Последний успешный вход"
+    )
+    failed_login_attempts: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default=text("0"), comment="Неудачные попытки входа"
+    )
+    locked_until: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, comment="Вход заблокирован до (UTC)"
     )
 
     student: Mapped[Student | None] = relationship(back_populates="user", uselist=False)
@@ -78,6 +101,12 @@ class Student(IdMixin, TimestampMixin, Base):
         nullable=False,
         index=True,
         comment="Учебная группа",
+    )
+    department_id: Mapped[int | None] = mapped_column(
+        ForeignKey("departments.id", ondelete="RESTRICT"),
+        nullable=True,
+        index=True,
+        comment="Кафедра; NULL для ещё не распределённых студентов",
     )
     record_book_number: Mapped[str | None] = mapped_column(
         String(20), nullable=True, unique=True, comment="Номер зачётной книжки"

@@ -24,7 +24,8 @@ class UserRole(StrEnum):
     """Роль пользователя в системе."""
 
     STUDENT = "student"
-    TEACHER = "teacher"
+    NAUCHRUK = "nauchruk"
+    ZAVKAF = "zavkaf"
     ADMIN = "admin"
 
 

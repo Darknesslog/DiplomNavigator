@@ -2,11 +2,16 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from sqlalchemy import ForeignKey, SmallInteger, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, IdMixin, TimestampMixin
 
+if TYPE_CHECKING:
+    from app.models.accounts import Student, Teacher
+    from app.models.topic import Topic
 
 class Faculty(IdMixin, TimestampMixin, Base):
     """Факультет (институт)."""

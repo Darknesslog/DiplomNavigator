@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import CheckConstraint, Date, DateTime, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -10,6 +11,8 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.models.base import Base, IdMixin, TimestampMixin
 from app.models.enums import PeriodStatus, Semester, db_enum
 
+if TYPE_CHECKING:
+    from app.models.topic import Topic
 
 class AcademicPeriod(IdMixin, TimestampMixin, Base):
     """Учебный период, к которому привязаны темы и заявки.

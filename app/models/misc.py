@@ -3,16 +3,16 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import (
+    JSON,
     BigInteger,
     Boolean,
     CheckConstraint,
     DateTime,
     ForeignKey,
     Index,
-    JSON,
     String,
     Text,
     text,
@@ -22,6 +22,10 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, IdMixin, TimestampMixin
 
+if TYPE_CHECKING:
+    from app.models.accounts import User
+    from app.models.topic import Topic
+    from app.models.workflow import Application
 
 class Attachment(IdMixin, TimestampMixin, Base):
     """Файл, прикреплённый к теме или к заявке.

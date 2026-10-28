@@ -30,9 +30,11 @@ Table users [note: 'Учётные записи пользователей'] {
   middle_name varchar(100) [null, note: 'Отчество, если есть']
   email varchar(255) [note: 'Логин и адрес для писем']
   password_hash varchar(255) [note: 'Хэш пароля (argon2/bcrypt), не сам пароль']
-  role varchar(32) [note: 'Роль: student / teacher / admin']
+  role varchar(32) [note: 'Роль: student / nauchruk / zavkaf / admin']
   is_active boolean [note: 'Может ли входить в систему']
   last_login_at timestamptz [null, note: 'Последний успешный вход']
+  failed_login_attempts integer [note: 'Неудачные попытки входа']
+  locked_until timestamptz [null, note: 'Вход заблокирован до (UTC)']
   created_at timestamptz [note: 'Когда запись создана']
   updated_at timestamptz [note: 'Когда запись последний раз менялась']
 }
@@ -71,6 +73,7 @@ Table students [note: 'Студенты'] {
   id bigint [pk, note: 'Первичный ключ']
   user_id bigint [unique, note: 'Учётная запись студента']
   group_id bigint [note: 'Учебная группа']
+  department_id bigint [null, note: 'Кафедра; NULL для ещё не распределённых студентов']
   record_book_number varchar(20) [unique, null, note: 'Номер зачётной книжки']
   admission_year smallint [null, note: 'Год поступления']
   created_at timestamptz [note: 'Когда запись создана']
@@ -162,6 +165,7 @@ Ref: notifications.user_id > users.id
 Ref: study_groups.faculty_id > faculties.id
 Ref: students.user_id > users.id
 Ref: students.group_id > study_groups.id
+Ref: students.department_id > departments.id
 Ref: teachers.user_id > users.id
 Ref: teachers.department_id > departments.id
 Ref: topics.period_id > academic_periods.id

@@ -61,7 +61,7 @@ def build_schema_sql() -> str:
 
     lines.append("COMMIT;")
     lines.append("")
-    return "\n".join(lines)
+    return "\n".join(line.rstrip() for line in "\n".join(lines).split("\n"))
 
 
 def build_drop_sql() -> str:
@@ -73,7 +73,7 @@ def build_drop_sql() -> str:
     for table in reversed(Base.metadata.sorted_tables):
         lines.append(f"DROP TABLE IF EXISTS {table.name} CASCADE;")
     lines.append("")
-    return "\n".join(lines)
+    return "\n".join(line.rstrip() for line in "\n".join(lines).split("\n"))
 
 
 def main() -> None:

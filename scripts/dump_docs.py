@@ -25,7 +25,7 @@ from sqlalchemy import (
 )
 from sqlalchemy import String as SAString
 from sqlalchemy.dialects import postgresql
-from sqlalchemy.dialects.postgresql import JSONB, JSON
+from sqlalchemy.dialects.postgresql import JSON, JSONB
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
@@ -92,8 +92,7 @@ def build_dictionary() -> str:
         "Документ сгенерирован из `app/models` командой `uv run python scripts/dump_docs.py`.",
         "Правки в этот файл не вносятся — меняйте модели и пересобирайте.",
         "",
-        f"Всего таблиц: **{len(Base.metadata.sorted_tables)}**. "
-        "Типы указаны в нотации PostgreSQL.",
+        f"Всего таблиц: **{len(Base.metadata.sorted_tables)}**. Типы указаны в нотации PostgreSQL.",
         "",
         "## Содержание",
         "",
@@ -142,7 +141,7 @@ def build_dictionary() -> str:
                             dialect=DIALECT, compile_kwargs={"literal_binds": True}
                         )
                     )
-                except Exception:  # noqa: BLE001 - fallback на текстовый вид
+                except Exception:
                     sql_text = str(check.sqltext)
                 lines.append(f"- `{check.name}`: `{sql_text}`")
             lines.append("")

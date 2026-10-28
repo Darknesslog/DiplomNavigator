@@ -39,7 +39,7 @@ def check_ddl() -> list[str]:
             str(CreateTable(table).compile(dialect=DIALECT))
             for index in table.indexes:
                 str(CreateIndex(index).compile(dialect=DIALECT))
-        except Exception as exc:  # noqa: BLE001 - нужен любой сбой компиляции
+        except Exception as exc:
             problems.append(f"{table.name}: {exc}")
     return problems
 

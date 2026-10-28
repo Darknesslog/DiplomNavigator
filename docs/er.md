@@ -9,6 +9,7 @@ erDiagram
     faculties ||--o{ departments : "имеет кафедры"
     faculties ||--o{ study_groups : "имеет группы"
     departments ||--o{ teachers : "работают"
+    departments |o--o{ students : "закреплены"
     study_groups ||--o{ students : "учатся"
 
     users ||--o| students : "профиль студента"
@@ -39,12 +40,13 @@ erDiagram
         varchar last_name
         varchar first_name
         varchar email UK
-        varchar role "student / teacher / admin"
+        varchar role "student / nauchruk / zavkaf / admin"
     }
 
     students {
         bigint id PK
         bigint user_id FK,UK
+        bigint department_id FK
         bigint group_id FK
         varchar record_book_number UK
     }

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import (
     CheckConstraint,
@@ -19,6 +20,12 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.models.base import Base, IdMixin, TimestampMixin
 from app.models.enums import TopicSource, TopicStatus, db_enum
 
+if TYPE_CHECKING:
+    from app.models.accounts import Student, Teacher, User
+    from app.models.misc import Attachment
+    from app.models.period import AcademicPeriod
+    from app.models.refs import Department
+    from app.models.workflow import Application, Assignment
 
 class Topic(IdMixin, TimestampMixin, Base):
     """Тема диплома, которую можно взять.
