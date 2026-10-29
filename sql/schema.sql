@@ -230,16 +230,14 @@ CREATE TABLE topics (
 	created_by_user_id BIGINT NOT NULL,
 	proposed_by_student_id BIGINT,
 	title VARCHAR(500) NOT NULL,
-	description TEXT,
+	description TEXT NOT NULL,
 	status VARCHAR(32) DEFAULT 'draft' NOT NULL,
 	source VARCHAR(32) DEFAULT 'teacher' NOT NULL,
 	company_name VARCHAR(200),
-	max_students SMALLINT DEFAULT 1 NOT NULL,
 	published_at TIMESTAMP WITH TIME ZONE,
 	created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
 	updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
 	CONSTRAINT pk_topics PRIMARY KEY (id),
-	CONSTRAINT ck_topics_max_students_positive CHECK (max_students > 0),
 	CONSTRAINT fk_topics_period_id_academic_periods FOREIGN KEY(period_id) REFERENCES academic_periods (id) ON DELETE RESTRICT,
 	CONSTRAINT fk_topics_supervisor_id_teachers FOREIGN KEY(supervisor_id) REFERENCES teachers (id) ON DELETE RESTRICT,
 	CONSTRAINT fk_topics_department_id_departments FOREIGN KEY(department_id) REFERENCES departments (id) ON DELETE RESTRICT,
@@ -266,7 +264,6 @@ COMMENT ON COLUMN topics.description IS 'Описание, задачи, ожи�
 COMMENT ON COLUMN topics.status IS 'draft / published / rejected / archived';
 COMMENT ON COLUMN topics.source IS 'Кто предложил: преподаватель, студент или компания';
 COMMENT ON COLUMN topics.company_name IS 'Организация, если тема от предприятия';
-COMMENT ON COLUMN topics.max_students IS 'Сколько студентов можно закрепить на тему';
 COMMENT ON COLUMN topics.published_at IS 'Когда тема стала видна студентам';
 COMMENT ON COLUMN topics.created_at IS 'Когда запись создана';
 COMMENT ON COLUMN topics.updated_at IS 'Когда запись последний раз менялась';
@@ -294,6 +291,7 @@ CREATE INDEX ix_applications_status ON applications (status);
 CREATE INDEX ix_applications_student_id ON applications (student_id);
 CREATE INDEX ix_applications_topic_id ON applications (topic_id);
 CREATE UNIQUE INDEX uq_applications_student_id_topic_id_active ON applications (student_id, topic_id) WHERE status IN ('pending', 'approved');
+CREATE UNIQUE INDEX uq_applications_topic_id_active ON applications (topic_id) WHERE status IN ('pending', 'approved');
 
 COMMENT ON TABLE applications IS 'Заявки студентов на темы';
 COMMENT ON COLUMN applications.id IS 'Первичный ключ';
@@ -331,6 +329,7 @@ CREATE INDEX ix_assignments_student_id ON assignments (student_id);
 CREATE INDEX ix_assignments_supervisor_id ON assignments (supervisor_id);
 CREATE INDEX ix_assignments_topic_id ON assignments (topic_id);
 CREATE UNIQUE INDEX uq_assignments_student_id_active ON assignments (student_id) WHERE status = 'active';
+CREATE UNIQUE INDEX uq_assignments_topic_id_active ON assignments (topic_id) WHERE status = 'active';
 
 COMMENT ON TABLE assignments IS 'Итоговые закрепления тем за студентами';
 COMMENT ON COLUMN assignments.id IS 'Первичный ключ';

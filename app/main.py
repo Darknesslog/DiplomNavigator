@@ -6,6 +6,8 @@ from fastapi import FastAPI
 
 from app.api.accounts import router as accounts_router
 from app.api.auth import router as auth_router
+from app.api.supervisor import router as supervisor_router
+from app.api.topics import router as topics_router
 from app.config import ENVIRONMENT
 
 app = FastAPI(
@@ -17,6 +19,8 @@ app = FastAPI(
 
 app.include_router(auth_router)
 app.include_router(accounts_router)
+app.include_router(topics_router)
+app.include_router(supervisor_router)
 
 
 @app.get("/health", tags=["service"])

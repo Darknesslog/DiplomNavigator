@@ -1,6 +1,7 @@
 """Isolated API tests: SQLite for behavior, never the application's configured database."""
 
 from collections.abc import Iterator
+from datetime import date, datetime
 
 import pytest
 from fastapi.testclient import TestClient
@@ -13,12 +14,18 @@ from app import config
 from app.db import get_db
 from app.main import app
 from app.models import (
+    AcademicPeriod,
+    Application,
+    ApplicationStatusHistory,
+    Assignment,
     Base,
     Department,
     Faculty,
     Student,
     StudyGroup,
     Teacher,
+    Topic,
+    TopicStatus,
     User,
     UserRole,
 )
@@ -60,6 +67,11 @@ def sessions(encoded_password: str, monkeypatch) -> Iterator[sessionmaker[Sessio
         StudyGroup.__table__,
         Student.__table__,
         Teacher.__table__,
+        AcademicPeriod.__table__,
+        Topic.__table__,
+        Application.__table__,
+        ApplicationStatusHistory.__table__,
+        Assignment.__table__,
     ]
     Base.metadata.create_all(engine, tables=tables)
     factory = sessionmaker(bind=engine, expire_on_commit=False)
@@ -117,6 +129,52 @@ def sessions(encoded_password: str, monkeypatch) -> Iterator[sessionmaker[Sessio
             )
         for profile_id, user_id, dept in [(1, 3, 1), (2, 5, 2), (3, 8, 1), (4, 9, None)]:
             db.add(Student(id=profile_id, user_id=user_id, group_id=1, department_id=dept))
+        db.add(
+            AcademicPeriod(
+                id=1,
+                name="Autumn 2026",
+                academic_year=2026,
+                semester="autumn",
+                starts_on=date(2026, 9, 1),
+                ends_on=date(2027, 1, 31),
+                application_opens_at=datetime(2026, 9, 1),
+                application_closes_at=datetime(2027, 1, 31),
+                status="open",
+            )
+        )
+        db.add_all(
+            [
+                Topic(
+                    id=1,
+                    period_id=1,
+                    supervisor_id=2,
+                    department_id=1,
+                    created_by_user_id=4,
+                    title="Published topic",
+                    description="A published topic description.",
+                    status=TopicStatus.PUBLISHED,
+                ),
+                Topic(
+                    id=2,
+                    period_id=1,
+                    supervisor_id=1,
+                    department_id=1,
+                    created_by_user_id=6,
+                    title="Draft topic",
+                    description="A draft topic description.",
+                    status=TopicStatus.DRAFT,
+                ),
+            ]
+        )
+        db.add(
+            Application(
+                id=1,
+                student_id=1,
+                topic_id=1,
+                motivation="I am interested in this topic.",
+                status="pending",
+            )
+        )
         db.commit()
     yield factory
     engine.dispose()

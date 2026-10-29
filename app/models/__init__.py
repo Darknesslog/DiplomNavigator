@@ -10,6 +10,7 @@ from app.models.accounts import Student, Teacher, User
 from app.models.base import Base, IdMixin, TimestampMixin
 from app.models.enums import (
     ApplicationStatus,
+    AssignmentStage,
     AssignmentStatus,
     PeriodStatus,
     Semester,
@@ -29,6 +30,7 @@ __all__ = [
     "ApplicationStatus",
     "ApplicationStatusHistory",
     "Assignment",
+    "AssignmentStage",
     "AssignmentStatus",
     "Attachment",
     "Base",

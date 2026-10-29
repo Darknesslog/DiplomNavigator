@@ -193,11 +193,10 @@
 | created_by_user_id | `BIGINT` | нет | — | users.id | Кто создал карточку темы |
 | proposed_by_student_id | `BIGINT` | да | — | students.id | Студент, если тему предложил он сам |
 | title | `VARCHAR(500)` | нет | — | — | Формулировка темы |
-| description | `TEXT` | да | — | — | Описание, задачи, ожидаемый результат |
+| description | `TEXT` | нет | — | — | Краткое описание, задачи, ожидаемый результат |
 | status | `VARCHAR(32)` | нет | draft | — | draft / published / rejected / archived |
 | source | `VARCHAR(32)` | нет | teacher | — | Кто предложил: преподаватель, студент или компания |
 | company_name | `VARCHAR(200)` | да | — | — | Организация, если тема от предприятия |
-| max_students | `SMALLINT` | нет | 1 | — | Сколько студентов можно закрепить на тему |
 | published_at | `TIMESTAMP WITH TIME ZONE` | да | — | — | Когда тема стала видна студентам |
 | created_at | `TIMESTAMP WITH TIME ZONE` | нет | now() | — | Когда запись создана |
 | updated_at | `TIMESTAMP WITH TIME ZONE` | нет | now() | — | Когда запись последний раз менялась |
@@ -205,7 +204,6 @@
 Проверки:
 
 - `ck_topics_topic_source`: `topics.source IN ('teacher', 'student', 'company')`
-- `ck_topics_max_students_positive`: `max_students > 0`
 - `ck_topics_topic_status`: `topics.status IN ('draft', 'published', 'rejected', 'archived')`
 
 Индексы:

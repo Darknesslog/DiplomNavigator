@@ -1,0 +1,22 @@
+[
+  {
+    "email": "seed.supervisor.pi@example.com",
+    "first_name": "Анна",
+    "last_name": "Петрова",
+    "middle_name": "Игоревна",
+    "department_short_name": "ПИ",
+    "position": "доцент",
+    "academic_degree": "кандидат технических наук",
+    "max_students": 8
+  },
+  {
+    "email": "seed.supervisor.is@example.com",
+    "first_name": "Михаил",
+    "last_name": "Соколов",
+    "middle_name": "Алексеевич",
+    "department_short_name": "ИС",
+    "position": "старший преподаватель",
+    "academic_degree": null,
+    "max_students": 8
+  }
+]

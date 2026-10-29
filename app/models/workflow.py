@@ -11,6 +11,7 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Index,
+    SmallInteger,
     String,
     Text,
     text,
@@ -18,7 +19,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, IdMixin, TimestampMixin
-from app.models.enums import ApplicationStatus, AssignmentStatus, db_enum
+from app.models.enums import ApplicationStatus, AssignmentStage, AssignmentStatus, db_enum
 
 if TYPE_CHECKING:
     from app.models.accounts import Student, Teacher, User
@@ -188,6 +189,18 @@ class Assignment(IdMixin, TimestampMixin, Base):
         nullable=False,
         server_default="active",
         comment="active / completed / cancelled",
+    )
+    progress_percent: Mapped[int] = mapped_column(
+        SmallInteger,
+        nullable=False,
+        server_default=text("0"),
+        comment="Процент выполнения от 0 до 100",
+    )
+    current_stage: Mapped[AssignmentStage] = mapped_column(
+        db_enum(AssignmentStage, "assignment_stage"),
+        nullable=False,
+        server_default="in_progress",
+        comment="Текущий этап работы",
     )
     assigned_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

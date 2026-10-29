@@ -79,6 +79,15 @@ class AssignmentStatus(StrEnum):
     CANCELLED = "cancelled"
 
 
+class AssignmentStage(StrEnum):
+    """Current stage of the graduation work."""
+
+    IN_PROGRESS = "in_progress"
+    UNDER_REVIEW = "under_review"
+    ADMITTED_TO_DEFENSE = "admitted_to_defense"
+    DEFENDED = "defended"
+
+
 def db_enum(enum_cls: type[StrEnum], name: str, length: int = 32) -> Enum:
     """Собирает VARCHAR + CHECK колонку из Python-перечисления.
 

@@ -26,6 +26,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends libpq5 \
 # Копируем готовое виртуальное окружение и код из первого этапа
 COPY --from=builder /app/.venv /app/.venv
 COPY --from=builder /app/app /app/app
+COPY --from=builder /app/scripts /app/scripts
+COPY --from=builder /app/seed /app/seed
 # Миграции и конфиг Alembic: без них `alembic upgrade head` в контейнере не запустится
 COPY --from=builder /app/migrations /app/migrations
 COPY --from=builder /app/alembic.ini /app/alembic.ini

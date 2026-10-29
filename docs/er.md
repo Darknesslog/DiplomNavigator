@@ -96,9 +96,9 @@ erDiagram
         bigint created_by_user_id FK
         bigint proposed_by_student_id FK
         varchar title
+        text description
         varchar status "draft / published / rejected / archived"
         varchar source "teacher / student / company"
-        smallint max_students
     }
 
     applications {

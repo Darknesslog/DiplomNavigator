@@ -1,0 +1,76 @@
+[
+  {
+    "title": "Платформа выбора тем выпускных работ",
+    "description": "Разработка веб-сервиса для публикации тем ВКР, подачи заявок студентами и контроля решений научных руководителей.",
+    "source": "teacher",
+    "supervisor_email": "seed.supervisor.pi@example.com",
+    "status": "published"
+  },
+  {
+    "title": "Трекер прогресса выполнения ВКР",
+    "description": "Сервис визуального контроля этапов подготовки выпускной квалификационной работы.",
+    "source": "teacher",
+    "supervisor_email": "seed.supervisor.pi@example.com",
+    "status": "published"
+  },
+  {
+    "title": "Система рекомендаций тем по интересам студента",
+    "description": "Исследование и реализация рекомендаций тем ВКР на основе интересов и компетенций студента.",
+    "source": "teacher",
+    "supervisor_email": "seed.supervisor.pi@example.com",
+    "status": "draft"
+  },
+  {
+    "title": "Антиплагиат для учебных работ",
+    "description": "Проектирование подсистемы проверки текстов выпускных работ на совпадения.",
+    "source": "teacher",
+    "supervisor_email": "seed.supervisor.pi@example.com",
+    "status": "draft"
+  },
+  {
+    "title": "Мобильный кабинет студента",
+    "description": "Разработка адаптивного интерфейса для просмотра темы, заявки и статуса выполнения ВКР.",
+    "source": "teacher",
+    "supervisor_email": "seed.supervisor.pi@example.com",
+    "status": "draft"
+  },
+  {
+    "title": "Аналитика нагрузки научных руководителей",
+    "description": "Формирование отчетов и визуализаций по распределению студентов между научными руководителями.",
+    "source": "company",
+    "company_name": "ООО Учебные технологии",
+    "supervisor_email": "seed.supervisor.is@example.com",
+    "status": "published"
+  },
+  {
+    "title": "Интеграция с электронным деканатом",
+    "description": "Обмен сведениями о студентах, группах и учебных периодах с внутренней информационной системой.",
+    "source": "company",
+    "company_name": "АО Университетские системы",
+    "supervisor_email": "seed.supervisor.is@example.com",
+    "status": "draft"
+  },
+  {
+    "title": "Каталог цифровых архивов ВКР",
+    "description": "Проектирование каталога защищенных выпускных работ с поиском и фильтрацией.",
+    "source": "student",
+    "proposed_by_student_email": "seed.student.4@example.com",
+    "supervisor_email": "seed.supervisor.is@example.com",
+    "status": "draft"
+  },
+  {
+    "title": "Чат студента и научного руководителя",
+    "description": "Исследование требований и разработка защищенного канала коммуникации по выпускной работе.",
+    "source": "student",
+    "proposed_by_student_email": "seed.student.5@example.com",
+    "supervisor_email": "seed.supervisor.is@example.com",
+    "status": "rejected"
+  },
+  {
+    "title": "Архив методических материалов кафедры",
+    "description": "Система хранения и поиска методических материалов для подготовки выпускных работ.",
+    "source": "teacher",
+    "supervisor_email": "seed.supervisor.is@example.com",
+    "status": "archived"
+  }
+]

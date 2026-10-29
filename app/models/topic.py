@@ -6,14 +6,11 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import (
-    CheckConstraint,
     DateTime,
     ForeignKey,
     Index,
-    SmallInteger,
     String,
     Text,
-    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -36,7 +33,6 @@ class Topic(IdMixin, TimestampMixin, Base):
 
     __tablename__ = "topics"
     __table_args__ = (
-        CheckConstraint("max_students > 0", name="max_students_positive"),
         Index("ix_topics_period_id_status", "period_id", "status"),
         {"comment": "Темы выпускных квалификационных работ"},
     )
@@ -70,8 +66,8 @@ class Topic(IdMixin, TimestampMixin, Base):
         comment="Студент, если тему предложил он сам",
     )
     title: Mapped[str] = mapped_column(String(500), nullable=False, comment="Формулировка темы")
-    description: Mapped[str | None] = mapped_column(
-        Text, nullable=True, comment="Описание, задачи, ожидаемый результат"
+    description: Mapped[str] = mapped_column(
+        Text, nullable=False, comment="Описание, задачи, ожидаемый результат"
     )
     status: Mapped[TopicStatus] = mapped_column(
         db_enum(TopicStatus, "topic_status"),
@@ -87,12 +83,6 @@ class Topic(IdMixin, TimestampMixin, Base):
     )
     company_name: Mapped[str | None] = mapped_column(
         String(200), nullable=True, comment="Организация, если тема от предприятия"
-    )
-    max_students: Mapped[int] = mapped_column(
-        SmallInteger,
-        nullable=False,
-        server_default=text("1"),
-        comment="Сколько студентов можно закрепить на тему",
     )
     published_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True, comment="Когда тема стала видна студентам"
