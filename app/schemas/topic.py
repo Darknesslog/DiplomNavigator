@@ -4,7 +4,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from app.models.enums import TopicSource, TopicStatus
+from app.models.enums import TopicArchiveReason, TopicSource, TopicStatus
 
 
 class TopicCreate(BaseModel):
@@ -61,5 +61,7 @@ class TopicResponse(BaseModel):
     company_name: str | None
     proposed_by_student_id: int | None
     published_at: datetime | None
+    archived_at: datetime | None
+    archive_reason: TopicArchiveReason | None
     created_at: datetime
     updated_at: datetime

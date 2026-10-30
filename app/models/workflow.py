@@ -82,6 +82,12 @@ class Application(IdMixin, TimestampMixin, Base):
     decision_comment: Mapped[str | None] = mapped_column(
         Text, nullable=True, comment="Комментарий к решению"
     )
+    expires_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, comment="Дедлайн решения по заявке"
+    )
+    cooldown_until: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, comment="До какого момента запрещена повторная заявка"
+    )
 
     student: Mapped[Student] = relationship(back_populates="applications")
     topic: Mapped[Topic] = relationship(back_populates="applications")

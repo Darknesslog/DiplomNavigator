@@ -15,7 +15,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, IdMixin, TimestampMixin
-from app.models.enums import TopicSource, TopicStatus, db_enum
+from app.models.enums import TopicArchiveReason, TopicSource, TopicStatus, db_enum
 
 if TYPE_CHECKING:
     from app.models.accounts import Student, Teacher, User
@@ -86,6 +86,14 @@ class Topic(IdMixin, TimestampMixin, Base):
     )
     published_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True, comment="Когда тема стала видна студентам"
+    )
+    archived_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, comment="Когда тема попала в архив"
+    )
+    archive_reason: Mapped[TopicArchiveReason | None] = mapped_column(
+        db_enum(TopicArchiveReason, "topic_archive_reason"),
+        nullable=True,
+        comment="Причина архивации: deleted / completed / expired",
     )
 
     period: Mapped[AcademicPeriod] = relationship(back_populates="topics")

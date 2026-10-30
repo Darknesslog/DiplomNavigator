@@ -20,6 +20,8 @@ class ApplicationResponse(BaseModel):
     decided_by_user_id: int | None
     decided_at: datetime | None
     decision_comment: str | None
+    expires_at: datetime | None
+    cooldown_until: datetime | None
     created_at: datetime
     updated_at: datetime
 

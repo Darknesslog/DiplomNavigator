@@ -235,6 +235,8 @@ CREATE TABLE topics (
 	source VARCHAR(32) DEFAULT 'teacher' NOT NULL,
 	company_name VARCHAR(200),
 	published_at TIMESTAMP WITH TIME ZONE,
+	archived_at TIMESTAMP WITH TIME ZONE,
+	archive_reason VARCHAR(32),
 	created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
 	updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
 	CONSTRAINT pk_topics PRIMARY KEY (id),
@@ -244,7 +246,8 @@ CREATE TABLE topics (
 	CONSTRAINT fk_topics_created_by_user_id_users FOREIGN KEY(created_by_user_id) REFERENCES users (id) ON DELETE RESTRICT,
 	CONSTRAINT fk_topics_proposed_by_student_id_students FOREIGN KEY(proposed_by_student_id) REFERENCES students (id) ON DELETE SET NULL,
 	CONSTRAINT ck_topics_topic_status CHECK (status IN ('draft', 'published', 'rejected', 'archived')),
-	CONSTRAINT ck_topics_topic_source CHECK (source IN ('teacher', 'student', 'company'))
+	CONSTRAINT ck_topics_topic_source CHECK (source IN ('teacher', 'student', 'company')),
+	CONSTRAINT ck_topics_topic_archive_reason CHECK (archive_reason IN ('deleted', 'completed', 'expired'))
 );
 
 CREATE INDEX ix_topics_created_by_user_id ON topics (created_by_user_id);
@@ -277,12 +280,14 @@ CREATE TABLE applications (
 	decided_by_user_id BIGINT,
 	decided_at TIMESTAMP WITH TIME ZONE,
 	decision_comment TEXT,
+	expires_at TIMESTAMP WITH TIME ZONE,
+	cooldown_until TIMESTAMP WITH TIME ZONE,
 	created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
 	updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
 	CONSTRAINT pk_applications PRIMARY KEY (id),
 	CONSTRAINT fk_applications_student_id_students FOREIGN KEY(student_id) REFERENCES students (id) ON DELETE CASCADE,
 	CONSTRAINT fk_applications_topic_id_topics FOREIGN KEY(topic_id) REFERENCES topics (id) ON DELETE CASCADE,
-	CONSTRAINT ck_applications_application_status CHECK (status IN ('pending', 'approved', 'rejected', 'withdrawn')),
+	CONSTRAINT ck_applications_application_status CHECK (status IN ('pending', 'approved', 'rejected', 'withdrawn', 'expired')),
 	CONSTRAINT fk_applications_decided_by_user_id_users FOREIGN KEY(decided_by_user_id) REFERENCES users (id) ON DELETE SET NULL
 );
 
@@ -290,6 +295,7 @@ CREATE INDEX ix_applications_decided_by_user_id ON applications (decided_by_user
 CREATE INDEX ix_applications_status ON applications (status);
 CREATE INDEX ix_applications_student_id ON applications (student_id);
 CREATE INDEX ix_applications_topic_id ON applications (topic_id);
+CREATE INDEX ix_applications_expires_at_pending ON applications (expires_at) WHERE status = 'pending';
 CREATE UNIQUE INDEX uq_applications_student_id_topic_id_active ON applications (student_id, topic_id) WHERE status IN ('pending', 'approved');
 CREATE UNIQUE INDEX uq_applications_topic_id_active ON applications (topic_id) WHERE status IN ('pending', 'approved');
 
@@ -297,11 +303,13 @@ COMMENT ON TABLE applications IS 'Заявки студентов на темы'
 COMMENT ON COLUMN applications.id IS 'Первичный ключ';
 COMMENT ON COLUMN applications.student_id IS 'Кто подал заявку';
 COMMENT ON COLUMN applications.topic_id IS 'На какую тему';
-COMMENT ON COLUMN applications.status IS 'pending / approved / rejected / withdrawn';
+COMMENT ON COLUMN applications.status IS 'pending / approved / rejected / withdrawn / expired';
 COMMENT ON COLUMN applications.motivation IS 'Почему студент хочет эту тему';
 COMMENT ON COLUMN applications.decided_by_user_id IS 'Кто принял решение по заявке';
 COMMENT ON COLUMN applications.decided_at IS 'Когда принято решение';
 COMMENT ON COLUMN applications.decision_comment IS 'Комментарий к решению';
+COMMENT ON COLUMN applications.expires_at IS 'Дедлайн решения по заявке';
+COMMENT ON COLUMN applications.cooldown_until IS 'До какого момента запрещена повторная заявка';
 COMMENT ON COLUMN applications.created_at IS 'Когда запись создана';
 COMMENT ON COLUMN applications.updated_at IS 'Когда запись последний раз менялась';
 

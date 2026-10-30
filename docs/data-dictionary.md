@@ -198,6 +198,8 @@
 | source | `VARCHAR(32)` | нет | teacher | — | Кто предложил: преподаватель, студент или компания |
 | company_name | `VARCHAR(200)` | да | — | — | Организация, если тема от предприятия |
 | published_at | `TIMESTAMP WITH TIME ZONE` | да | — | — | Когда тема стала видна студентам |
+| archived_at | `TIMESTAMP WITH TIME ZONE` | да | — | — | Когда тема попала в архив |
+| archive_reason | `VARCHAR(32)` | да | — | — | Причина: deleted / completed / expired |
 | created_at | `TIMESTAMP WITH TIME ZONE` | нет | now() | — | Когда запись создана |
 | updated_at | `TIMESTAMP WITH TIME ZONE` | нет | now() | — | Когда запись последний раз менялась |
 
@@ -222,17 +224,19 @@
 | **id** | `BIGINT` | нет | identity | — | PK. Первичный ключ |
 | student_id | `BIGINT` | нет | — | students.id | Кто подал заявку |
 | topic_id | `BIGINT` | нет | — | topics.id | На какую тему |
-| status | `VARCHAR(32)` | нет | pending | — | pending / approved / rejected / withdrawn |
+| status | `VARCHAR(32)` | нет | pending | — | pending / approved / rejected / withdrawn / expired |
 | motivation | `TEXT` | да | — | — | Почему студент хочет эту тему |
 | decided_by_user_id | `BIGINT` | да | — | users.id | Кто принял решение по заявке |
 | decided_at | `TIMESTAMP WITH TIME ZONE` | да | — | — | Когда принято решение |
 | decision_comment | `TEXT` | да | — | — | Комментарий к решению |
+| expires_at | `TIMESTAMP WITH TIME ZONE` | да | — | — | Дедлайн решения по заявке |
+| cooldown_until | `TIMESTAMP WITH TIME ZONE` | да | — | — | До какого момента запрещена повторная заявка |
 | created_at | `TIMESTAMP WITH TIME ZONE` | нет | now() | — | Когда запись создана |
 | updated_at | `TIMESTAMP WITH TIME ZONE` | нет | now() | — | Когда запись последний раз менялась |
 
 Проверки:
 
-- `ck_applications_application_status`: `applications.status IN ('pending', 'approved', 'rejected', 'withdrawn')`
+- `ck_applications_application_status`: `applications.status IN ('pending', 'approved', 'rejected', 'withdrawn', 'expired')`
 
 Индексы:
 
@@ -240,6 +244,7 @@
 - `ix_applications_status` (status)
 - `ix_applications_student_id` (student_id)
 - `ix_applications_topic_id` (topic_id)
+- `ix_applications_expires_at_pending` (expires_at) WHERE status = 'pending'
 - `uq_applications_student_id_topic_id_active` UNIQUE (student_id, topic_id) WHERE status IN ('pending', 'approved')
 
 ## assignments

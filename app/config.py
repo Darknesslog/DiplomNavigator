@@ -25,8 +25,15 @@ DATABASE_URL: str = os.getenv("DATABASE_URL", DEFAULT_DATABASE_URL)
 ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
 LOGIN_MAX_ATTEMPTS: int = 3
 LOGIN_COOLDOWN_MINUTES: int = int(os.getenv("LOGIN_COOLDOWN_MINUTES", "15"))
+APPLICATION_DECISION_TIMEOUT_MINUTES: int = int(
+    os.getenv("APPLICATION_DECISION_TIMEOUT_MINUTES", "2")
+)
 JWT_ISSUER: str = "diplomnavigator"
 JWT_AUDIENCE: str = "diplomnavigator-api"
 
-if ACCESS_TOKEN_EXPIRE_MINUTES <= 0 or LOGIN_COOLDOWN_MINUTES <= 0:
-    raise ValueError("Token lifetime and login cooldown must be positive")
+if (
+    ACCESS_TOKEN_EXPIRE_MINUTES <= 0
+    or LOGIN_COOLDOWN_MINUTES <= 0
+    or APPLICATION_DECISION_TIMEOUT_MINUTES <= 0
+):
+    raise ValueError("Token lifetime, login cooldown, and application timeout must be positive")

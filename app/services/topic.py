@@ -12,6 +12,7 @@ from app.models import (
     Student,
     Teacher,
     Topic,
+    TopicArchiveReason,
     TopicSource,
     TopicStatus,
     User,
@@ -19,6 +20,7 @@ from app.models import (
 )
 from app.schemas.topic import TopicCreate, TopicStatusUpdate
 from app.services.accounts import department_id
+from app.services.application import expire_overdue_applications, student_topic_query
 
 
 def require_period(db: Session, period_id: int) -> AcademicPeriod:
@@ -130,7 +132,14 @@ def topic_query(actor: User, *, status_filter: TopicStatus | None = None):
 
 def get_topic(db: Session, actor: User, topic_id: int) -> Topic:
     """Load a topic only when it is visible to the caller."""
-    topic = db.scalar(topic_query(actor).where(Topic.id == topic_id))
+    if expire_overdue_applications(db):
+        db.commit()
+    statement = (
+        student_topic_query(actor)
+        if actor.role == UserRole.STUDENT
+        else topic_query(actor)
+    )
+    topic = db.scalar(statement.where(Topic.id == topic_id))
     if topic is None:
         raise HTTPException(status_code=404, detail="Topic not found")
     return topic
@@ -150,6 +159,12 @@ def moderate_topic(db: Session, actor: User, topic_id: int, data: TopicStatusUpd
         raise HTTPException(status_code=409, detail="Archived topics cannot be moderated")
     topic.status = data.status
     topic.published_at = datetime.now(UTC) if data.status == TopicStatus.PUBLISHED else None
+    if data.status == TopicStatus.ARCHIVED:
+        topic.archived_at = datetime.now(UTC)
+        topic.archive_reason = TopicArchiveReason.DELETED
+    else:
+        topic.archived_at = None
+        topic.archive_reason = None
     db.commit()
     db.refresh(topic)
     return topic

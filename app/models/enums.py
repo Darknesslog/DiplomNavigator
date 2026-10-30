@@ -54,6 +54,14 @@ class TopicStatus(StrEnum):
     ARCHIVED = "archived"
 
 
+class TopicArchiveReason(StrEnum):
+    """Why a topic was moved to the archive."""
+
+    DELETED = "deleted"
+    COMPLETED = "completed"
+    EXPIRED = "expired"
+
+
 class TopicSource(StrEnum):
     """Кто предложил тему."""
 
@@ -69,6 +77,7 @@ class ApplicationStatus(StrEnum):
     APPROVED = "approved"
     REJECTED = "rejected"
     WITHDRAWN = "withdrawn"
+    EXPIRED = "expired"
 
 
 class AssignmentStatus(StrEnum):

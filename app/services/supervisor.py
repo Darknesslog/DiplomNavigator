@@ -1,11 +1,12 @@
 """Supervisor workflow: applications, assignments, and progress."""
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from fastapi import HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app import config
 from app.models import (
     Application,
     ApplicationStatus,
@@ -19,6 +20,7 @@ from app.models import (
     User,
 )
 from app.schemas.supervisor import ApplicationDecision, AssignmentProgressUpdate
+from app.services.application import expire_overdue_applications
 
 
 def require_supervisor_profile(actor: User) -> Teacher:
@@ -33,6 +35,8 @@ def supervisor_applications(
 ) -> list[Application]:
     """List applications for topics owned by the current supervisor."""
     teacher = require_supervisor_profile(actor)
+    if expire_overdue_applications(db):
+        db.commit()
     statement = (
         select(Application)
         .join(Application.topic)
@@ -53,6 +57,8 @@ def decide_application(
     approve: bool,
 ) -> Application:
     """Approve or reject one pending application atomically."""
+    if expire_overdue_applications(db):
+        db.commit()
     teacher = require_supervisor_profile(actor)
     application = db.scalar(
         select(Application)
@@ -109,6 +115,9 @@ def decide_application(
         application.status = ApplicationStatus.APPROVED
     else:
         application.status = ApplicationStatus.REJECTED
+        application.cooldown_until = now + timedelta(
+            minutes=config.APPLICATION_DECISION_TIMEOUT_MINUTES
+        )
     application.decided_by_user_id = actor.id
     application.decided_at = now
     application.decision_comment = decision.comment

@@ -173,6 +173,7 @@ def sessions(encoded_password: str, monkeypatch) -> Iterator[sessionmaker[Sessio
                 topic_id=1,
                 motivation="I am interested in this topic.",
                 status="pending",
+                expires_at=datetime(2026, 12, 31),
             )
         )
         db.commit()

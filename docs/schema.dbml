@@ -105,6 +105,8 @@ Table topics [note: 'Темы выпускных квалификационны�
   source varchar(32) [note: 'Кто предложил: преподаватель, студент или компания']
   company_name varchar(200) [null, note: 'Организация, если тема от предприятия']
   published_at timestamptz [null, note: 'Когда тема стала видна студентам']
+  archived_at timestamptz [null, note: 'Когда тема попала в архив']
+  archive_reason varchar(32) [null, note: 'deleted / completed / expired']
   created_at timestamptz [note: 'Когда запись создана']
   updated_at timestamptz [note: 'Когда запись последний раз менялась']
 }
@@ -113,11 +115,13 @@ Table applications [note: 'Заявки студентов на темы'] {
   id bigint [pk, note: 'Первичный ключ']
   student_id bigint [note: 'Кто подал заявку']
   topic_id bigint [note: 'На какую тему']
-  status varchar(32) [note: 'pending / approved / rejected / withdrawn']
+  status varchar(32) [note: 'pending / approved / rejected / withdrawn / expired']
   motivation text [null, note: 'Почему студент хочет эту тему']
   decided_by_user_id bigint [null, note: 'Кто принял решение по заявке']
   decided_at timestamptz [null, note: 'Когда принято решение']
   decision_comment text [null, note: 'Комментарий к решению']
+  expires_at timestamptz [null, note: 'Дедлайн решения по заявке']
+  cooldown_until timestamptz [null, note: 'До какого момента запрещена повторная заявка']
   created_at timestamptz [note: 'Когда запись создана']
   updated_at timestamptz [note: 'Когда запись последний раз менялась']
 }
