@@ -2,9 +2,10 @@
 
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, computed_field, model_validator
 
 from app.models.enums import TopicArchiveReason, TopicSource, TopicStatus
+from app.schemas.presentation import TOPIC_LABELS
 
 
 class TopicCreate(BaseModel):
@@ -59,9 +60,14 @@ class TopicResponse(BaseModel):
     status: TopicStatus
     source: TopicSource
     company_name: str | None
-    proposed_by_student_id: int | None
     published_at: datetime | None
     archived_at: datetime | None
     archive_reason: TopicArchiveReason | None
     created_at: datetime
     updated_at: datetime
+
+    @computed_field
+    @property
+    def status_label(self) -> str:
+        """Display a localized label while preserving the existing status enum."""
+        return TOPIC_LABELS[self.status]

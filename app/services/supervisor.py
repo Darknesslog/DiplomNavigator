@@ -4,7 +4,7 @@ from datetime import UTC, datetime, timedelta
 
 from fastapi import HTTPException
 from sqlalchemy import func, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app import config
 from app.models import (
@@ -14,6 +14,7 @@ from app.models import (
     Assignment,
     AssignmentStage,
     AssignmentStatus,
+    Student,
     Teacher,
     Topic,
     TopicStatus,
@@ -31,7 +32,11 @@ def require_supervisor_profile(actor: User) -> Teacher:
 
 
 def supervisor_applications(
-    db: Session, actor: User, status_filter: ApplicationStatus | None = None
+    db: Session,
+    actor: User,
+    status_filter: ApplicationStatus | None = None,
+    offset: int = 0,
+    limit: int = 50,
 ) -> list[Application]:
     """List applications for topics owned by the current supervisor."""
     teacher = require_supervisor_profile(actor)
@@ -41,11 +46,16 @@ def supervisor_applications(
         select(Application)
         .join(Application.topic)
         .where(Topic.supervisor_id == teacher.id)
+        .options(
+            selectinload(Application.student).selectinload(Student.user),
+            selectinload(Application.student).selectinload(Student.group),
+            selectinload(Application.topic),
+        )
         .order_by(Application.created_at, Application.id)
     )
     if status_filter is not None:
         statement = statement.where(Application.status == status_filter)
-    return list(db.scalars(statement))
+    return list(db.scalars(statement.offset(offset).limit(limit)))
 
 
 def decide_application(
@@ -61,15 +71,11 @@ def decide_application(
         db.commit()
     teacher = require_supervisor_profile(actor)
     application = db.scalar(
-        select(Application)
-        .where(Application.id == application_id)
-        .with_for_update()
+        select(Application).where(Application.id == application_id).with_for_update()
     )
     if application is None:
         raise HTTPException(status_code=404, detail="Application not found")
-    topic = db.scalar(
-        select(Topic).where(Topic.id == application.topic_id).with_for_update()
-    )
+    topic = db.scalar(select(Topic).where(Topic.id == application.topic_id).with_for_update())
     if topic is None:
         raise HTTPException(status_code=404, detail="Topic not found")
     if topic.supervisor_id != teacher.id:
@@ -141,9 +147,7 @@ def update_assignment_progress(
     """Update progress only for an assignment owned by the current supervisor."""
     teacher = require_supervisor_profile(actor)
     assignment = db.scalar(
-        select(Assignment)
-        .where(Assignment.id == assignment_id)
-        .with_for_update()
+        select(Assignment).where(Assignment.id == assignment_id).with_for_update()
     )
     if assignment is None:
         raise HTTPException(status_code=404, detail="Assignment not found")

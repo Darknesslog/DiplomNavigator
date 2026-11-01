@@ -2,7 +2,7 @@
 
 from fastapi import HTTPException
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, object_session
 
 from app.models import Department, StudyGroup, User, UserRole
 from app.schemas.accounts import UserResponse
@@ -19,6 +19,14 @@ def department_id(user: User) -> int | None:
 
 def public_user(user: User) -> UserResponse:
     """Build the API allowlist without exposing password hashes or cooldown state."""
+    student = user.student
+    own_department_id = department_id(user)
+    # Student has no department relationship; resolve the name through the active session.
+    department = None
+    if own_department_id is not None:
+        db = object_session(user)
+        if db is not None:
+            department = db.get(Department, own_department_id)
     return UserResponse(
         id=user.id,
         email=user.email,
@@ -27,8 +35,13 @@ def public_user(user: User) -> UserResponse:
         middle_name=user.middle_name,
         role=user.role,
         is_active=user.is_active,
-        department_id=department_id(user),
+        department_id=own_department_id,
         last_login_at=user.last_login_at,
+        department_name=department.name if department else None,
+        group_id=student.group_id if student else None,
+        group_name=student.group.name if student else None,
+        record_book_number=student.record_book_number if student else None,
+        admission_year=student.admission_year if student else None,
     )
 
 

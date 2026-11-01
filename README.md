@@ -1,5 +1,19 @@
 # DiplomNavigator
 
+## Контракты экранов и аудит API
+
+Сверка Swagger с текстовой расшифровкой макетов: [TASK.md](TASK.md).
+Примеры JSON, права доступа, совместимые пути и ограничения:
+[контракты Дашборда и Заявок](feature/dashboard-and-application-contracts.md).
+
+Добавлены `/dashboard/supervisor`, `/dashboard/head`, `/applications/me`,
+`/booking-requests`, карточки `/supervisor/students/{student_id}` и
+`/supervisor/assignments/{assignment_id}`. Алиасы `/bookings/me` и
+`/topics/{topic_id}/bookings` используют существующую сущность `Application`.
+Поля интерфейса: `group_name`, `justification`, `status_label`, `current_stage_label`.
+Дашборды читают БД; `progress_history: null` — заглушка, поскольку история
+прогресса в исходной ветке не сохраняется.
+
 Backend MVP для выбора тем выпускных работ на FastAPI, SQLAlchemy,
 Alembic и PostgreSQL.
 

@@ -2,28 +2,20 @@
 
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, computed_field
 
-from app.models.enums import ApplicationStatus, AssignmentStage, AssignmentStatus
+from app.models.enums import AssignmentStage, AssignmentStatus
+from app.schemas.application import StudentApplicationResponse
+from app.schemas.presentation import (
+    ASSIGNMENT_LABELS,
+    STAGE_LABELS,
+    StudentSummary,
+    TopicSummary,
+)
 
 
-class ApplicationResponse(BaseModel):
+class ApplicationResponse(StudentApplicationResponse):
     """A student application visible to its topic supervisor."""
-
-    model_config = ConfigDict(from_attributes=True)
-
-    id: int
-    student_id: int
-    topic_id: int
-    status: ApplicationStatus
-    motivation: str | None
-    decided_by_user_id: int | None
-    decided_at: datetime | None
-    decision_comment: str | None
-    expires_at: datetime | None
-    cooldown_until: datetime | None
-    created_at: datetime
-    updated_at: datetime
 
 
 class ApplicationDecision(BaseModel):
@@ -49,6 +41,26 @@ class AssignmentResponse(BaseModel):
     assigned_at: datetime
     created_at: datetime
     updated_at: datetime
+    student: StudentSummary
+    topic: TopicSummary
+
+    @computed_field
+    @property
+    def group_name(self) -> str:
+        """Expose the group without requiring another API request."""
+        return self.student.group_name
+
+    @computed_field
+    @property
+    def status_label(self) -> str:
+        """Return the display label for the assignment status."""
+        return ASSIGNMENT_LABELS[self.status]
+
+    @computed_field
+    @property
+    def current_stage_label(self) -> str:
+        """Return the display label for the current work stage."""
+        return STAGE_LABELS[self.current_stage]
 
 
 class AssignmentProgressUpdate(BaseModel):

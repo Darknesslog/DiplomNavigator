@@ -22,6 +22,11 @@ class UserResponse(BaseModel):
     is_active: bool
     department_id: int | None
     last_login_at: datetime | None
+    department_name: str | None = None
+    group_id: int | None = None
+    group_name: str | None = None
+    record_book_number: str | None = None
+    admission_year: int | None = None
 
 
 class TokenResponse(BaseModel):
