@@ -73,8 +73,8 @@
 Полная [история](migration-history.md), [ER Mermaid](er.md), [SQL](../sql/schema.sql).
 Словарь данных и DBML генерируются локально и исключены из Git как дубли
 моделей, миграций и схемы SQL.
-Генерация: `uv run python scripts/dump_docs.py`,
-`uv run python scripts/dump_ddl.py`, `uv run python -m scripts.export_demo_docs`.
+Генерация: `uv run python -m backend.scripts.dump_docs`,
+`uv run python -m backend.scripts.dump_ddl`, `uv run python -m backend.scripts.export_demo_docs`.
 
 Seed: первый запуск создал 30 записей, повторный пропустил все 30.
 Пароль seed-пользователей теперь обязателен в `SEED_PASSWORD`, общего
@@ -92,7 +92,7 @@ API запущен по http://127.0.0.1:8000/docs. Проверены Swagger U
 заявка и одобрение, принудительные 100%, отказ студенту с 403 и уведомление,
 действия завкафедрой и сохранение в независимой PostgreSQL-сессии.
 
-Скрипт `uv run python -m scripts.verify_demo` использует существующего admin
+Скрипт `uv run python -m backend.scripts.verify_demo` использует существующего admin
 из `DEMO_ADMIN_EMAIL` / `DEMO_ADMIN_PASSWORD`, создаёт новые demo-аккаунты
 и темы через HTTP и подтверждает студента в отдельной PostgreSQL-сессии.
 Пароли и токены в отчёт не записываются. Созданные тестовые данные сохраняются.
@@ -102,7 +102,7 @@ API запущен по http://127.0.0.1:8000/docs. Проверены Swagger U
 Точечная проверка после POST /students:
 
 ```powershell
-uv run python -m scripts.verify_persistence --email student.demo@example.com
+uv run python -m backend.scripts.verify_persistence --email student.demo@example.com
 ```
 
 Скрипт только читает и требует PostgreSQL. Ненулевой выход означает,
@@ -113,7 +113,7 @@ uv run python -m scripts.verify_persistence --email student.demo@example.com
 
 ## Основная последовательность демо
 
-1. Bootstrap: `uv run python -m scripts.create_admin`.
+1. Bootstrap: `uv run python -m backend.scripts.create_admin`.
 2. Login admin; `GET /departments`, `/study-groups`, `/academic-periods`.
 3. `POST /supervisors`; другой аккаунт руководителя повысить через
    `PATCH /users/{user_id}/role` до `zavkaf`.

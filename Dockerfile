@@ -11,7 +11,7 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev --no-install-project
 
-# Копируем код приложения
+# Копируем backend и frontend-код
 COPY . .
 RUN uv sync --frozen --no-dev
 
@@ -25,15 +25,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends libpq5 \
 
 # Копируем готовое виртуальное окружение и код из первого этапа
 COPY --from=builder /app/.venv /app/.venv
-COPY --from=builder /app/app /app/app
-COPY --from=builder /app/scripts /app/scripts
-COPY --from=builder /app/seed /app/seed
+COPY --from=builder /app/backend /app/backend
 # Миграции и конфиг Alembic: без них `alembic upgrade head` в контейнере не запустится
-COPY --from=builder /app/migrations /app/migrations
 COPY --from=builder /app/alembic.ini /app/alembic.ini
 
 ENV PATH="/app/.venv/bin:$PATH" \
+    PYTHONPATH="/app" \
     PYTHONUNBUFFERED=1
 
 EXPOSE 8000
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "backend.app.main:app", "--host", "0.0.0.0", "--port", "8000"]

@@ -6,7 +6,7 @@
 2. Set a randomly generated `SECRET_KEY` of at least 32 bytes in the ignored local
    environment file or deployment secrets. Never commit the actual secret.
 3. Apply `uv run alembic upgrade head`.
-4. Create the first administrator with `uv run python -m scripts.create_admin`.
+4. Create the first administrator with `uv run python -m backend.scripts.create_admin`.
    The command prompts for the identity and password; it does not promote an existing user.
 5. Start the existing development server and use its Swagger UI at `/docs`.
 

@@ -104,18 +104,18 @@ docker compose up -d db
 docker compose ps
 uv run alembic upgrade head
 uv run alembic current
-uv run python -m scripts.seed
+uv run python -m backend.scripts.seed
 ```
 
 Ожидается работающий `db`, head `b5c8d0e3f712` и сообщение `Seed completed`.
 Seed создаёт справочники, период, научруков, студентов и десять тем.
 Повторный запуск пропускает существующие записи и не сбрасывает пароли.
-Список seed-аккаунтов: [seed/README.md](seed/README.md).
+Список seed-аккаунтов: [backend/seed/README.md](backend/seed/README.md).
 
 Создайте первого администратора:
 
 ```powershell
-uv run python -m scripts.create_admin
+uv run python -m backend.scripts.create_admin
 ```
 
 Введите email, имя, фамилию и дважды пароль. Пример email: `admin@example.com`.
@@ -132,7 +132,7 @@ docker compose up -d --build
 оставьте БД в Docker и в отдельном терминале выполните:
 
 ```powershell
-uv run uvicorn app.main:app --host 127.0.0.1 --port 8000
+uv run uvicorn backend.app.main:app --host 127.0.0.1 --port 8000
 ```
 
 Не запускайте оба варианта API одновременно на порту 8000.
@@ -373,7 +373,7 @@ ID профиля студента возвращается как `student_id` 
 После `POST /students` вернитесь в терминал корня проекта:
 
 ```powershell
-uv run python -m scripts.verify_persistence --email student.demo@example.com
+uv run python -m backend.scripts.verify_persistence --email student.demo@example.com
 ```
 
 Скрипт открывает новую сессию PostgreSQL, выполняет только SELECT и выводит
@@ -406,8 +406,8 @@ curl.exe -i http://127.0.0.1:8000/supervisor/works -H "Authorization: Bearer <ST
 uv run pytest -v
 uv run ruff check .
 uv run alembic check
-uv run python scripts/check_schema.py
-uv run python -m scripts.export_demo_docs
+uv run python -m backend.scripts.check_schema
+uv run python -m backend.scripts.export_demo_docs
 ```
 
 Актуальные [ER](docs/er.md), [миграции](docs/migration-history.md),
@@ -428,6 +428,6 @@ npm run dev
 
 Повторяемая HTTP-проверка создаёт новые demo-аккаунты и темы:
 задайте локально `DEMO_ADMIN_EMAIL` и `DEMO_ADMIN_PASSWORD` существующего admin,
-запустите API, затем `uv run python -m scripts.verify_demo`.
+запустите API, затем `uv run python -m backend.scripts.verify_demo`.
 Локальный отчёт появится в `docs/demo-verification.md`; он исключён из Git.
 Для ревью PR результаты собраны в [техническом отчёте](docs/technical-demo.md).

@@ -29,7 +29,7 @@ Repowise CLI: `status`, пакетный `context` для API аккаунтов
 ## Выполнено
 
 - [x] Прочитаны глобальные и проектные инструкции, применены навыки
-  `python-fact-grounded-coding` и `add-endpoint`; маршруты размещены в `app/api/`.
+  `python-fact-grounded-coding` и `add-endpoint`; маршруты размещены в `backend/app/api/`.
 - [x] Сопоставлены маршруты, схемы и фактические enum с расшифровкой.
 - [x] Добавлены `group_name`, `justification`, `status_label`, `current_stage_label`.
 - [x] Добавлены вложенные карточки студента/темы в заявки и закрепления.

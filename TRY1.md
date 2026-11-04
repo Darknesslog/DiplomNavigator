@@ -66,7 +66,7 @@ docker compose up -d --force-recreate app
 ```powershell
 docker compose exec app alembic upgrade head
 docker compose exec app alembic current
-docker compose exec app python -m scripts.seed
+docker compose exec app python -m backend.scripts.seed
 ```
 
 Ожидается head `b5c8d0e3f712` и `Seed completed`. Повторный seed пропускает
@@ -280,8 +280,8 @@ docker compose stop app
 docker compose up -d db
 uv sync
 uv run alembic upgrade head
-uv run python -m scripts.seed
-uv run uvicorn app.main:app --host 127.0.0.1 --port 8000
+uv run python -m backend.scripts.seed
+uv run uvicorn backend.app.main:app --host 127.0.0.1 --port 8000
 ```
 
 DATABASE_URL в локальной `.env` должен указывать на 127.0.0.1:5433

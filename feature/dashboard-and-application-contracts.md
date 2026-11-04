@@ -5,15 +5,15 @@
 Основа: ветка заявок `01c965c`. Подача/решения повторно используют существующие
 сервисы, чтение реализовано отдельным слоем проекций.
 
-- [API экранов](../app/api/read_models.py): заявки, dashboard, workload и алиасы.
-- [API научрука](../app/api/supervisor.py): карточки и списки студентов/закреплений.
-- [Сервисы чтения](../app/services/read_models.py): ownership, кафедра, агрегаты.
-- [Общие карточки](../app/schemas/presentation.py), [дашборды](../app/schemas/dashboard.py),
-  [заявки](../app/schemas/application.py), [закрепления](../app/schemas/supervisor.py).
-- [Профиль](../app/schemas/accounts.py) и [сериализация](../app/services/accounts.py):
+- [API экранов](../backend/app/api/read_models.py): заявки, dashboard, workload и алиасы.
+- [API научрука](../backend/app/api/supervisor.py): карточки и списки студентов/закреплений.
+- [Сервисы чтения](../backend/app/services/read_models.py): ownership, кафедра, агрегаты.
+- [Общие карточки](../backend/app/schemas/presentation.py), [дашборды](../backend/app/schemas/dashboard.py),
+  [заявки](../backend/app/schemas/application.py), [закрепления](../backend/app/schemas/supervisor.py).
+- [Профиль](../backend/app/schemas/accounts.py) и [сериализация](../backend/app/services/accounts.py):
   группа, кафедра, зачётная книжка, год поступления.
-- [Темы](../app/schemas/topic.py): подпись статуса, удалено повторное объявление поля.
-- [Регистрация](../app/main.py): `/auth/login`, `/auth/me` при сохранении старых путей.
+- [Темы](../backend/app/schemas/topic.py): подпись статуса, удалено повторное объявление поля.
+- [Регистрация](../backend/app/main.py): `/auth/login`, `/auth/me` при сохранении старых путей.
 
 Модель БД не меняется, новой миграции нет. Существующие миграции ветки заявок
 должны быть применены. История прогресса пока не сохраняется.

@@ -1,6 +1,6 @@
 # ER-диаграмма
 
-Сгенерировано: `uv run python -m scripts.export_demo_docs`.
+Сгенерировано: `uv run python -m backend.scripts.export_demo_docs`.
 
 ```mermaid
 erDiagram

@@ -16,23 +16,23 @@ Paths below are relative to this document.
 
 | File or area | Change |
 | --- | --- |
-| [Authentication routes](../app/api/auth.py) | Added POST /login and GET /me; persisted failed attempts and cooldown state |
-| [Account routes](../app/api/accounts.py) | Added student/supervisor creation and listing, department listing, department assignment, and role assignment |
-| [Security helpers](../app/security.py) | Added Argon2id password hashing, existing bcrypt verification, JWT creation and validation |
-| [Dependencies](../app/dependencies.py) | Added get_current_user and reusable require_roles dependencies |
-| [Account service](../app/services/accounts.py) | Added department scope checks, profile/role checks, faculty consistency, safe public responses, and conflict handling |
-| [API schemas](../app/schemas/accounts.py) | Added separate input/output models, field validation, and rejection of unexpected input fields |
-| [Application entry point](../app/main.py) | Registered both new routers; the existing health endpoint remains |
-| [Account models](../app/models/accounts.py) | Added users.failed_login_attempts, users.locked_until, and students.department_id |
-| [Role enum](../app/models/enums.py) | Replaced UserRole.TEACHER with NAUCHRUK and added ZAVKAF; retained STUDENT and ADMIN |
-| [Configuration](../app/config.py) | Added token lifetime, cooldown duration, failure threshold, issuer, and audience |
+| [Authentication routes](../backend/app/api/auth.py) | Added POST /login and GET /me; persisted failed attempts and cooldown state |
+| [Account routes](../backend/app/api/accounts.py) | Added student/supervisor creation and listing, department listing, department assignment, and role assignment |
+| [Security helpers](../backend/app/security.py) | Added Argon2id password hashing, existing bcrypt verification, JWT creation and validation |
+| [Dependencies](../backend/app/dependencies.py) | Added get_current_user and reusable require_roles dependencies |
+| [Account service](../backend/app/services/accounts.py) | Added department scope checks, profile/role checks, faculty consistency, safe public responses, and conflict handling |
+| [API schemas](../backend/app/schemas/accounts.py) | Added separate input/output models, field validation, and rejection of unexpected input fields |
+| [Application entry point](../backend/app/main.py) | Registered both new routers; the existing health endpoint remains |
+| [Account models](../backend/app/models/accounts.py) | Added users.failed_login_attempts, users.locked_until, and students.department_id |
+| [Role enum](../backend/app/models/enums.py) | Replaced UserRole.TEACHER with NAUCHRUK and added ZAVKAF; retained STUDENT and ADMIN |
+| [Configuration](../backend/app/config.py) | Added token lifetime, cooldown duration, failure threshold, issuer, and audience |
 | [Environment example](../.env.example) | Removed the example signing secret; documented the new settings |
-| [Alembic migration](../migrations/versions/2b88c9a7d104_authentication_and_departments.py) | Added columns, department foreign key/index, converted teacher roles, and updated the role CHECK constraint |
-| [Administrator bootstrap](../scripts/create_admin.py) | Added interactive creation of the first administrator |
-| [Tests](../tests/test_authentication.py) and [fixtures](../tests/conftest.py) | Added real JWT/password API tests with an isolated database |
+| [Alembic migration](../backend/migrations/versions/2b88c9a7d104_authentication_and_departments.py) | Added columns, department foreign key/index, converted teacher roles, and updated the role CHECK constraint |
+| [Administrator bootstrap](../backend/scripts/create_admin.py) | Added interactive creation of the first administrator |
+| [Tests](../backend/tests/test_authentication.py) and [fixtures](../backend/tests/conftest.py) | Added real JWT/password API tests with an isolated database |
 | [Dependencies and tooling](../pyproject.toml), [lockfile](../uv.lock) | Added PyJWT, pwdlib with Argon2/bcrypt, multipart parsing, email validation, pytest, HTTPX, and Ruff; configured tests and lint |
-| [ORM models](../app/models/) | Added type-only imports for relationship annotations; these imports do not execute at runtime |
-| [Schema check script](../scripts/check_schema.py), [documentation generator](../scripts/dump_docs.py), [SQL generator](../scripts/dump_ddl.py) | Corrected lint issues; normalized whitespace in generated SQL |
+| [ORM models](../backend/app/models/) | Added type-only imports for relationship annotations; these imports do not execute at runtime |
+| [Schema check script](../backend/scripts/check_schema.py), [documentation generator](../backend/scripts/dump_docs.py), [SQL generator](../backend/scripts/dump_ddl.py) | Corrected lint issues; normalized whitespace in generated SQL |
 | [ER diagram](../docs/er.md), [SQL reference](../sql/schema.sql) | Schema references; the generated data dictionary and DBML are kept locally |
 | [Operational documentation](../docs/authentication.md) | Documented deployment and the API contract |
 | [Git ignore rules](../.gitignore) | Excluded local agent instructions, editor/agent configuration, MCP configuration, and Repowise state |
@@ -306,8 +306,8 @@ Malformed requests can also fail validation before business logic runs.
 1. Install the locked dependencies with `uv sync`.
 2. Set a random private SECRET_KEY of at least 32 bytes.
 3. Run `uv run alembic upgrade head`.
-4. Bootstrap the first admin with `uv run python -m scripts.create_admin`.
-5. Start the existing development server with `uv run uvicorn app.main:app --reload`.
+4. Bootstrap the first admin with `uv run python -m backend.scripts.create_admin`.
+5. Start the existing development server with `uv run uvicorn backend.app.main:app --reload`.
 
 The admin bootstrap prompts for identity and a password twice. It creates a new account; it does
 not silently promote an existing account. It does not create faculty/group/department records.
