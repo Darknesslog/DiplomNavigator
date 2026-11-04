@@ -1,0 +1,52 @@
+[
+  {
+    "email": "seed.student.1@example.com",
+    "first_name": "Иван",
+    "last_name": "Кузнецов",
+    "middle_name": "Олегович",
+    "group_name": "ПИ-41",
+    "department_short_name": "ПИ",
+    "record_book_number": "SEED-PI-001",
+    "admission_year": 2022
+  },
+  {
+    "email": "seed.student.2@example.com",
+    "first_name": "Мария",
+    "last_name": "Орлова",
+    "middle_name": "Дмитриевна",
+    "group_name": "ПИ-41",
+    "department_short_name": "ПИ",
+    "record_book_number": "SEED-PI-002",
+    "admission_year": 2022
+  },
+  {
+    "email": "seed.student.3@example.com",
+    "first_name": "Алексей",
+    "last_name": "Морозов",
+    "middle_name": "Сергеевич",
+    "group_name": "ПИ-41",
+    "department_short_name": "ПИ",
+    "record_book_number": "SEED-PI-003",
+    "admission_year": 2022
+  },
+  {
+    "email": "seed.student.4@example.com",
+    "first_name": "Елена",
+    "last_name": "Волкова",
+    "middle_name": "Андреевна",
+    "group_name": "ИС-41",
+    "department_short_name": "ИС",
+    "record_book_number": "SEED-IS-001",
+    "admission_year": 2022
+  },
+  {
+    "email": "seed.student.5@example.com",
+    "first_name": "Даниил",
+    "last_name": "Лебедев",
+    "middle_name": "Романович",
+    "group_name": "ИС-41",
+    "department_short_name": "ИС",
+    "record_book_number": "SEED-IS-002",
+    "admission_year": 2022
+  }
+]

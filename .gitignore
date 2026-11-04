@@ -14,3 +14,30 @@ venv/
 
 # Docker
 *.log
+
+# AI instructions
+AGENTS.md
+SKILL.md
+
+# Local agent instructions and configuration
+AGENTS.override.md
+CLAUDE.md
+GEMINI.md
+/.agents/
+/.codex/
+/.claude/
+/.cursor/
+/.opencode/
+/.continue/
+/.cursorrules
+/.clinerules
+/.windsurfrules
+/.github/copilot-instructions.md
+/.github/instructions/
+/.github/prompts/
+/.github/agents/
+/docs/agent-development.md
+
+# Local MCP configuration and repository intelligence
+/.mcp.json
+/.repowise/
