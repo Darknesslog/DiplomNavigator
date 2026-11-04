@@ -3,7 +3,7 @@
 from datetime import UTC, datetime
 
 from fastapi import HTTPException
-from sqlalchemy import select
+from sqlalchemy import Select, select
 from sqlalchemy.orm import Session
 
 from app.models import (
@@ -112,7 +112,7 @@ def create_topic(db: Session, data: TopicCreate, actor: User) -> Topic:
     return topic
 
 
-def topic_query(actor: User, *, status_filter: TopicStatus | None = None):
+def topic_query(actor: User, *, status_filter: TopicStatus | None = None) -> Select[tuple[Topic]]:
     """Build the visibility query shared by list and detail endpoints."""
     statement = select(Topic)
     if status_filter is not None:

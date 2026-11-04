@@ -26,6 +26,7 @@ if TYPE_CHECKING:
     from app.models.misc import Attachment
     from app.models.topic import Topic
 
+
 class Application(IdMixin, TimestampMixin, Base):
     """Заявка студента на тему.
 
@@ -44,8 +45,22 @@ class Application(IdMixin, TimestampMixin, Base):
             "topic_id",
             unique=True,
             postgresql_where=text("status IN ('pending', 'approved')"),
+            sqlite_where=text("status IN ('pending', 'approved')"),
+        ),
+        Index(
+            "uq_applications_topic_id_active",
+            "topic_id",
+            unique=True,
+            postgresql_where=text("status IN ('pending', 'approved')"),
+            sqlite_where=text("status IN ('pending', 'approved')"),
         ),
         Index("ix_applications_status", "status"),
+        Index(
+            "ix_applications_expires_at_pending",
+            "expires_at",
+            postgresql_where=text("status = 'pending'"),
+            sqlite_where=text("status = 'pending'"),
+        ),
         {"comment": "Заявки студентов на темы"},
     )
 
@@ -86,7 +101,9 @@ class Application(IdMixin, TimestampMixin, Base):
         DateTime(timezone=True), nullable=True, comment="Дедлайн решения по заявке"
     )
     cooldown_until: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True, comment="До какого момента запрещена повторная заявка"
+        DateTime(timezone=True),
+        nullable=True,
+        comment="До какого момента запрещена повторная заявка",
     )
 
     student: Mapped[Student] = relationship(back_populates="applications")
@@ -110,7 +127,11 @@ class ApplicationStatusHistory(IdMixin, Base):
 
     __tablename__ = "application_status_history"
     __table_args__ = (
-        Index("ix_application_status_history_application_id_created_at", "application_id", "created_at"),
+        Index(
+            "ix_application_status_history_application_id_created_at",
+            "application_id",
+            "created_at",
+        ),
         {"comment": "История изменения статусов заявок"},
     )
 
@@ -164,6 +185,17 @@ class Assignment(IdMixin, TimestampMixin, Base):
             "student_id",
             unique=True,
             postgresql_where=text("status = 'active'"),
+            sqlite_where=text("status = 'active'"),
+        ),
+        Index(
+            "uq_assignments_topic_not_cancelled",
+            "topic_id",
+            unique=True,
+            postgresql_where=text("status <> 'cancelled'"),
+            sqlite_where=text("status <> 'cancelled'"),
+        ),
+        CheckConstraint(
+            "progress_percent BETWEEN 0 AND 100", name="assignment_progress_percent_range"
         ),
         CheckConstraint(
             "status <> 'cancelled' OR cancel_reason IS NOT NULL",
@@ -217,9 +249,7 @@ class Assignment(IdMixin, TimestampMixin, Base):
     order_number: Mapped[str | None] = mapped_column(
         String(50), nullable=True, comment="Номер приказа о закреплении тем"
     )
-    order_date: Mapped[date | None] = mapped_column(
-        Date, nullable=True, comment="Дата приказа"
-    )
+    order_date: Mapped[date | None] = mapped_column(Date, nullable=True, comment="Дата приказа")
     cancel_reason: Mapped[str | None] = mapped_column(
         Text, nullable=True, comment="Причина отмены закрепления"
     )

@@ -3,7 +3,7 @@
 from datetime import UTC, datetime, timedelta
 
 from fastapi import HTTPException
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
 from app import config
@@ -14,14 +14,17 @@ from app.models import (
     Assignment,
     AssignmentStage,
     AssignmentStatus,
+    Notification,
     Student,
     Teacher,
     Topic,
     TopicStatus,
     User,
 )
+from app.models.enums import NotificationKind
 from app.schemas.supervisor import ApplicationDecision, AssignmentProgressUpdate
 from app.services.application import expire_overdue_applications
+from app.services.workflow import check_workflow_scope, commit_workflow, lock_assignment_capacity
 
 
 def require_supervisor_profile(actor: User) -> Teacher:
@@ -69,7 +72,6 @@ def decide_application(
     """Approve or reject one pending application atomically."""
     if expire_overdue_applications(db):
         db.commit()
-    teacher = require_supervisor_profile(actor)
     application = db.scalar(
         select(Application).where(Application.id == application_id).with_for_update()
     )
@@ -78,8 +80,7 @@ def decide_application(
     topic = db.scalar(select(Topic).where(Topic.id == application.topic_id).with_for_update())
     if topic is None:
         raise HTTPException(status_code=404, detail="Topic not found")
-    if topic.supervisor_id != teacher.id:
-        raise HTTPException(status_code=403, detail="Application belongs to another supervisor")
+    check_workflow_scope(actor, topic)
     if application.status != ApplicationStatus.PENDING:
         raise HTTPException(status_code=409, detail="Application has already been decided")
 
@@ -87,31 +88,11 @@ def decide_application(
     if approve:
         if topic.status != TopicStatus.PUBLISHED:
             raise HTTPException(status_code=409, detail="Only published topics can be assigned")
-        locked_teacher = db.scalar(
-            select(Teacher).where(Teacher.id == teacher.id).with_for_update()
-        )
-        if locked_teacher is None:
-            raise HTTPException(status_code=409, detail="Supervisor profile is unavailable")
-        load = db.scalar(
-            select(func.count(Assignment.id)).where(
-                Assignment.supervisor_id == locked_teacher.id,
-                Assignment.status == AssignmentStatus.ACTIVE,
-            )
-        )
-        if load >= locked_teacher.max_students:
-            raise HTTPException(status_code=409, detail="Supervisor student limit reached")
-        existing = db.scalar(
-            select(Assignment.id).where(
-                Assignment.student_id == application.student_id,
-                Assignment.status == AssignmentStatus.ACTIVE,
-            )
-        )
-        if existing is not None:
-            raise HTTPException(status_code=409, detail="Student already has an active assignment")
+        locked_teacher = lock_assignment_capacity(db, topic, application.student_id)
         assignment = Assignment(
             student_id=application.student_id,
             topic_id=application.topic_id,
-            supervisor_id=teacher.id,
+            supervisor_id=locked_teacher.id,
             status=AssignmentStatus.ACTIVE,
             assigned_at=now,
             progress_percent=0,
@@ -136,7 +117,20 @@ def decide_application(
             created_at=now,
         )
     )
-    db.commit()
+    db.add(
+        Notification(
+            user_id=application.student.user_id,
+            kind=NotificationKind.APPLICATION_APPROVED
+            if approve
+            else NotificationKind.APPLICATION_REJECTED,
+            title="Заявка одобрена" if approve else "Заявка отклонена",
+            body=decision.comment,
+            created_at=now,
+            payload={"application_id": application.id, "topic_id": topic.id},
+            is_read=False,
+        )
+    )
+    commit_workflow(db)
     db.refresh(application)
     return application
 
@@ -157,7 +151,9 @@ def update_assignment_progress(
         raise HTTPException(status_code=409, detail="Only active assignments can be updated")
     if data.current_stage == AssignmentStage.DEFENDED and data.progress_percent != 100:
         raise HTTPException(status_code=422, detail="Defended work must have 100 percent progress")
-    assignment.progress_percent = data.progress_percent
+    assignment.progress_percent = (
+        100 if data.current_stage == AssignmentStage.ADMITTED_TO_DEFENSE else data.progress_percent
+    )
     assignment.current_stage = data.current_stage
     if data.current_stage == AssignmentStage.DEFENDED:
         assignment.status = AssignmentStatus.COMPLETED

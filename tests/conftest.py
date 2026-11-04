@@ -21,6 +21,7 @@ from app.models import (
     Base,
     Department,
     Faculty,
+    Notification,
     Student,
     StudyGroup,
     Teacher,
@@ -72,6 +73,7 @@ def sessions(encoded_password: str, monkeypatch) -> Iterator[sessionmaker[Sessio
         Application.__table__,
         ApplicationStatusHistory.__table__,
         Assignment.__table__,
+        Notification.__table__,
     ]
     Base.metadata.create_all(engine, tables=tables)
     factory = sessionmaker(bind=engine, expire_on_commit=False)

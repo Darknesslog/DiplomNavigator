@@ -1,195 +1,185 @@
-# Схема данных DiplomNavigator v0.1
+# ER-диаграмма
 
-Диаграмма отражает только ключевые поля (PK/FK). Полный перечень колонок —
-в [словаре данных](data-dictionary.md), он генерируется из моделей и всегда
-актуален.
+Сгенерировано: `uv run python -m scripts.export_demo_docs`.
 
 ```mermaid
 erDiagram
-    faculties ||--o{ departments : "имеет кафедры"
-    faculties ||--o{ study_groups : "имеет группы"
-    departments ||--o{ teachers : "работают"
-    departments |o--o{ students : "закреплены"
-    study_groups ||--o{ students : "учатся"
-
-    users ||--o| students : "профиль студента"
-    users ||--o| teachers : "профиль преподавателя"
-    users ||--o{ notifications : "получает"
-
-    academic_periods ||--o{ topics : "включает темы"
-    teachers ||--o{ topics : "руководит"
-    departments ||--o{ topics : "закреплена за"
-    users ||--o{ topics : "создал карточку"
-    students ||--o{ topics : "предложил свою тему"
-
-    students ||--o{ applications : "подаёт"
-    topics ||--o{ applications : "получает заявки"
-    users ||--o{ applications : "решает по заявке"
-    applications ||--o{ application_status_history : "история статусов"
-
-    students ||--o{ assignments : "закреплён"
-    topics ||--o{ assignments : "закреплена"
-    teachers ||--o{ assignments : "ведёт"
-
-    topics ||--o{ attachments : "файлы темы"
-    applications ||--o{ attachments : "файлы заявки"
-    users ||--o{ attachments : "загрузил"
-
-    users {
-        bigint id PK
-        varchar last_name
-        varchar first_name
-        varchar email UK
-        varchar role "student / nauchruk / zavkaf / admin"
-    }
-
-    students {
-        bigint id PK
-        bigint user_id FK,UK
-        bigint department_id FK
-        bigint group_id FK
-        varchar record_book_number UK
-    }
-
-    teachers {
-        bigint id PK
-        bigint user_id FK,UK
-        bigint department_id FK
-        smallint max_students
-    }
-
-    faculties {
-        bigint id PK
-        varchar name UK
-        varchar short_name UK
-    }
-
-    departments {
-        bigint id PK
-        bigint faculty_id FK
-        varchar name
-        varchar short_name UK
-    }
-
-    study_groups {
-        bigint id PK
-        bigint faculty_id FK
-        varchar name UK
-        smallint enrollment_year
-    }
-
     academic_periods {
-        bigint id PK
-        varchar name UK
-        int academic_year
-        varchar semester "autumn / spring"
-        timestamptz application_opens_at
-        timestamptz application_closes_at
-        varchar status
+        biginteger id PK
+        string name
+        integer academic_year
+        enum semester
+        date starts_on
+        date ends_on
+        datetime application_opens_at
+        datetime application_closes_at
+        enum status
+        datetime created_at
+        datetime updated_at
     }
-
-    topics {
-        bigint id PK
-        bigint period_id FK
-        bigint supervisor_id FK
-        bigint department_id FK
-        bigint created_by_user_id FK
-        bigint proposed_by_student_id FK
-        varchar title
-        text description
-        varchar status "draft / published / rejected / archived"
-        varchar source "teacher / student / company"
+    faculties {
+        biginteger id PK
+        string name
+        string short_name
+        datetime created_at
+        datetime updated_at
     }
-
-    applications {
-        bigint id PK
-        bigint student_id FK
-        bigint topic_id FK
-        varchar status "pending / approved / rejected / withdrawn"
-        bigint decided_by_user_id FK
-        timestamptz decided_at
+    users {
+        biginteger id PK
+        string last_name
+        string first_name
+        string middle_name
+        string email
+        string password_hash
+        enum role
+        boolean is_active
+        datetime last_login_at
+        integer failed_login_attempts
+        datetime locked_until
+        datetime created_at
+        datetime updated_at
     }
-
-    application_status_history {
-        bigint id PK
-        bigint application_id FK
-        varchar from_status
-        varchar to_status
-        bigint changed_by_user_id FK
-        timestamptz created_at
+    departments {
+        biginteger id PK
+        biginteger faculty_id FK
+        string name
+        string short_name
+        datetime created_at
+        datetime updated_at
     }
-
-    assignments {
-        bigint id PK
-        bigint student_id FK
-        bigint topic_id FK
-        bigint supervisor_id FK
-        varchar status "active / completed / cancelled"
-        timestamptz assigned_at
-        varchar order_number
-        date order_date
-    }
-
-    attachments {
-        bigint id PK
-        bigint topic_id FK
-        bigint application_id FK
-        varchar original_name
-        varchar storage_key UK
-        bigint size_bytes
-        bigint uploaded_by_user_id FK
-    }
-
     notifications {
-        bigint id PK
-        bigint user_id FK
-        varchar kind
-        bool is_read
-        timestamptz created_at
+        biginteger id PK
+        biginteger user_id FK
+        string kind
+        string title
+        text body
+        json payload
+        boolean is_read
+        datetime created_at
+        datetime read_at
     }
+    study_groups {
+        biginteger id PK
+        biginteger faculty_id FK
+        string name
+        smallinteger enrollment_year
+        datetime created_at
+        datetime updated_at
+    }
+    students {
+        biginteger id PK
+        biginteger user_id FK
+        biginteger group_id FK
+        biginteger department_id FK
+        string record_book_number
+        smallinteger admission_year
+        datetime created_at
+        datetime updated_at
+    }
+    teachers {
+        biginteger id PK
+        biginteger user_id FK
+        biginteger department_id FK
+        string position
+        string academic_degree
+        smallinteger max_students
+        boolean is_available
+        datetime created_at
+        datetime updated_at
+    }
+    topics {
+        biginteger id PK
+        biginteger period_id FK
+        biginteger supervisor_id FK
+        biginteger department_id FK
+        biginteger created_by_user_id FK
+        biginteger proposed_by_student_id FK
+        string title
+        text description
+        enum status
+        enum source
+        string company_name
+        datetime published_at
+        datetime archived_at
+        enum archive_reason
+        datetime created_at
+        datetime updated_at
+    }
+    applications {
+        biginteger id PK
+        biginteger student_id FK
+        biginteger topic_id FK
+        enum status
+        text motivation
+        biginteger decided_by_user_id FK
+        datetime decided_at
+        text decision_comment
+        datetime expires_at
+        datetime cooldown_until
+        datetime created_at
+        datetime updated_at
+    }
+    assignments {
+        biginteger id PK
+        biginteger student_id FK
+        biginteger topic_id FK
+        biginteger supervisor_id FK
+        enum status
+        smallinteger progress_percent
+        enum current_stage
+        datetime assigned_at
+        string order_number
+        date order_date
+        text cancel_reason
+        datetime created_at
+        datetime updated_at
+    }
+    application_status_history {
+        biginteger id PK
+        biginteger application_id FK
+        enum from_status
+        enum to_status
+        biginteger changed_by_user_id FK
+        text comment
+        datetime created_at
+    }
+    attachments {
+        biginteger id PK
+        biginteger topic_id FK
+        biginteger application_id FK
+        string original_name
+        string storage_key
+        string mime_type
+        biginteger size_bytes
+        biginteger uploaded_by_user_id FK
+        datetime created_at
+        datetime updated_at
+    }
+    faculties ||--o{ departments : "faculty_id"
+    users ||--o{ notifications : "user_id"
+    faculties ||--o{ study_groups : "faculty_id"
+    users ||--o{ students : "user_id"
+    study_groups ||--o{ students : "group_id"
+    departments |o--o{ students : "department_id"
+    users ||--o{ teachers : "user_id"
+    departments ||--o{ teachers : "department_id"
+    academic_periods ||--o{ topics : "period_id"
+    teachers ||--o{ topics : "supervisor_id"
+    departments |o--o{ topics : "department_id"
+    users ||--o{ topics : "created_by_user_id"
+    students |o--o{ topics : "proposed_by_student_id"
+    students ||--o{ applications : "student_id"
+    topics ||--o{ applications : "topic_id"
+    users |o--o{ applications : "decided_by_user_id"
+    students ||--o{ assignments : "student_id"
+    topics ||--o{ assignments : "topic_id"
+    teachers ||--o{ assignments : "supervisor_id"
+    applications ||--o{ application_status_history : "application_id"
+    users |o--o{ application_status_history : "changed_by_user_id"
+    topics |o--o{ attachments : "topic_id"
+    applications |o--o{ attachments : "application_id"
+    users |o--o{ attachments : "uploaded_by_user_id"
 ```
 
-## Как читать схему
-
-1. **`users` — это только учётные записи.** Кто человек в предметной области,
-   решают `students` и `teachers`, которые ссылаются на `users` один-к-одному.
-   Так один аккаунт может быть и научруком, и методистом, и внешним
-   пользователем, а авторизация не зависит от роли.
-2. **`academic_periods` — рамка всего.** Тема всегда принадлежит периоду.
-   Без этого «текущий семестр» протекает в код и в отчёты.
-3. **`topics` — предложение, `applications` — намерение, `assignments` — факт.**
-   Три разные сущности с разным жизненным циклом. Нельзя выкинуть
-   `assignments` и считать «закреплён» статусом заявки: заявку можно отозвать
-   и подать заново, а закрепление живёт отдельно и имеет номер приказа.
-4. **`application_status_history`** хранит путь, а не последний шаг: на разборе
-   нужен ответ «кто отклонил и когда», а не только текущий статус.
-5. **`attachments`** — один владелец на файл, проверяется
-   `num_nonnulls(topic_id, application_id) = 1`. Полиморфную пару
-   `(owner_type, owner_id)` сознательно не взяли: с ней нельзя поставить FK.
-
-## Правила, зашитые в БД, а не в код
-
-| Правило | Где живёт |
-| --- | --- |
-| У студента не больше одного активного закрепления | частичный UNIQUE `uq_assignments_student_id_active` |
-| Одна активная заявка на тему от одного студента | частичный UNIQUE `uq_applications_student_id_topic_id_active` |
-| Отмена закрепления требует причины | CHECK `ck_assignments_cancelled_requires_reason` |
-| Период не может кончиться раньше начала | CHECK `ck_academic_periods_dates_order` |
-| Окно подачи заявок закрывается позже, чем открывается | CHECK `ck_academic_periods_application_window` |
-| Email уникален без учёта регистра | `CREATE UNIQUE INDEX uq_users_email_lower ON users (lower(email))` |
-| У файла ровно один владелец | CHECK `ck_attachments_exactly_one_owner` |
-
-## Чего в схеме сознательно нет
-
-Это не забытое, а отложенное — чтобы не тащить в MVP лишнее:
-
-- **теги и области знаний** (`tags`, `topic_tags`) — нужны для поиска, но
-  набор тегов ещё никто не сформулировал;
-- **комментарии/обсуждение темы** (`comments`) — на MVP хватает
-  `applications.decision_comment`;
-- **этапы работы** (главы, проверки, рецензии) — это отдельный домен, если
-  продукт пойдёт дальше выбора темы;
-- **аудит-лог** изменений всех сущностей — истории статусов заявок достаточно
-  для первого семестра;
-- **мягкое удаление** (`deleted_at`) — пока неясно, нужно ли восстанавливать
-  удалённые темы; сейчас удаление ограничено внешними ключами.
+Частичные уникальные индексы обеспечивают одно активное закрепление
+на студента, одну активную заявку на тему и одно неотменённое закрепление на тему.

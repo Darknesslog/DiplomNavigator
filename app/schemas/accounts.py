@@ -27,6 +27,8 @@ class UserResponse(BaseModel):
     group_name: str | None = None
     record_book_number: str | None = None
     admission_year: int | None = None
+    student_id: int | None = None
+    supervisor_id: int | None = None
 
 
 class TokenResponse(BaseModel):

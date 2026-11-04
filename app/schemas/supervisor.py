@@ -2,7 +2,7 @@
 
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field, computed_field
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field, computed_field
 
 from app.models.enums import AssignmentStage, AssignmentStatus
 from app.schemas.application import StudentApplicationResponse
@@ -69,4 +69,7 @@ class AssignmentProgressUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     progress_percent: int = Field(ge=0, le=100)
-    current_stage: AssignmentStage
+    current_stage: AssignmentStage = Field(
+        validation_alias=AliasChoices("current_stage", "status"),
+        description="Этап работы. admitted_to_defense принудительно устанавливает 100%.",
+    )

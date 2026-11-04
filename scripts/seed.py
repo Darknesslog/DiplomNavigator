@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 from app.db import SessionLocal
 from app.models import (
@@ -26,7 +27,6 @@ from app.models import (
 from app.security import hash_password
 
 DATA_DIR = Path(__file__).resolve().parents[1] / "seed" / "data"
-DEFAULT_PASSWORD = "SeedPassword123!"
 
 
 @dataclass
@@ -44,7 +44,7 @@ def load_json(filename: str) -> Any:
 
 
 def get_or_create(
-    db, model: type[Any], statement, factory: Any, stats: SeedStats
+    db: Session, model: type[Any], statement, factory: Any, stats: SeedStats
 ) -> tuple[Any, bool]:
     """Find an entity by its stable key or add it once."""
     entity = db.scalar(statement)
@@ -59,7 +59,7 @@ def get_or_create(
 
 
 def seed_reference_data(
-    db, stats: SeedStats
+    db: Session, stats: SeedStats
 ) -> tuple[Faculty, dict[str, Department], dict[str, StudyGroup]]:
     """Create the faculty, departments, groups, and academic period."""
     faculty_data = load_json("faculty.json")
@@ -121,7 +121,7 @@ def seed_reference_data(
 
 
 def get_or_create_user(
-    db, data: dict[str, Any], role: UserRole, stats: SeedStats
+    db: Session, data: dict[str, Any], role: UserRole, stats: SeedStats
 ) -> User:
     """Create or reuse a seed user without changing existing credentials."""
     user, created = get_or_create(
@@ -133,7 +133,7 @@ def get_or_create_user(
             first_name=data["first_name"],
             last_name=data["last_name"],
             middle_name=data.get("middle_name"),
-            password_hash=hash_password(os.getenv("SEED_PASSWORD", DEFAULT_PASSWORD)),
+            password_hash=hash_password(os.environ["SEED_PASSWORD"]),
             role=role,
             is_active=True,
             failed_login_attempts=0,
@@ -148,7 +148,7 @@ def get_or_create_user(
 
 
 def seed_supervisors(
-    db, departments: dict[str, Department], stats: SeedStats
+    db: Session, departments: dict[str, Department], stats: SeedStats
 ) -> dict[str, Teacher]:
     """Create supervisor accounts and return them indexed by email."""
     result: dict[str, Teacher] = {}
@@ -173,7 +173,7 @@ def seed_supervisors(
 
 
 def seed_students(
-    db, departments: dict[str, Department], groups: dict[str, StudyGroup], stats: SeedStats
+    db: Session, departments: dict[str, Department], groups: dict[str, StudyGroup], stats: SeedStats
 ) -> dict[str, Student]:
     """Create student accounts and return them indexed by email."""
     result: dict[str, Student] = {}
@@ -197,7 +197,7 @@ def seed_students(
 
 
 def seed_topics(
-    db,
+    db: Session,
     period: AcademicPeriod,
     supervisors: dict[str, Teacher],
     students: dict[str, Student],
@@ -245,6 +245,9 @@ def seed_topics(
 
 def main() -> None:
     """Load all development fixtures in foreign-key order."""
+    password = os.getenv("SEED_PASSWORD", "")
+    if not 12 <= len(password) <= 128:
+        raise SystemExit("Set SEED_PASSWORD to 12..128 characters before loading demo users")
     stats = SeedStats()
     with SessionLocal() as db:
         try:
@@ -266,7 +269,7 @@ def main() -> None:
     print("Seed completed.")
     print(f"Records created: {stats.created}")
     print(f"Records skipped (already exist): {stats.skipped}")
-    print("Seed user password: value of SEED_PASSWORD (or the documented default)")
+    print("Seed credentials are taken from SEED_PASSWORD; existing passwords are unchanged")
 
 
 if __name__ == "__main__":

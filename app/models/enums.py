@@ -97,6 +97,13 @@ class AssignmentStage(StrEnum):
     DEFENDED = "defended"
 
 
+class NotificationKind(StrEnum):
+    """Workflow event names stored in recipient notifications."""
+
+    APPLICATION_APPROVED = "application_approved"
+    APPLICATION_REJECTED = "application_rejected"
+
+
 def db_enum(enum_cls: type[StrEnum], name: str, length: int = 32) -> Enum:
     """Собирает VARCHAR + CHECK колонку из Python-перечисления.
 

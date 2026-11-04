@@ -42,6 +42,8 @@ def public_user(user: User) -> UserResponse:
         group_name=student.group.name if student else None,
         record_book_number=student.record_book_number if student else None,
         admission_year=student.admission_year if student else None,
+        student_id=student.id if student else None,
+        supervisor_id=user.teacher.id if user.teacher else None,
     )
 
 

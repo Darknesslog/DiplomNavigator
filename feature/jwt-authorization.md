@@ -33,7 +33,7 @@ Paths below are relative to this document.
 | [Dependencies and tooling](../pyproject.toml), [lockfile](../uv.lock) | Added PyJWT, pwdlib with Argon2/bcrypt, multipart parsing, email validation, pytest, HTTPX, and Ruff; configured tests and lint |
 | [ORM models](../app/models/) | Added type-only imports for relationship annotations; these imports do not execute at runtime |
 | [Schema check script](../scripts/check_schema.py), [documentation generator](../scripts/dump_docs.py), [SQL generator](../scripts/dump_ddl.py) | Corrected lint issues; normalized whitespace in generated SQL |
-| [Data dictionary](../docs/data-dictionary.md), [DBML](../docs/schema.dbml), [ER diagram](../docs/er.md), [SQL reference](../sql/schema.sql) | Updated schema references to match the models |
+| [ER diagram](../docs/er.md), [SQL reference](../sql/schema.sql) | Schema references; the generated data dictionary and DBML are kept locally |
 | [Operational documentation](../docs/authentication.md) | Documented deployment and the API contract |
 | [Git ignore rules](../.gitignore) | Excluded local agent instructions, editor/agent configuration, MCP configuration, and Repowise state |
 

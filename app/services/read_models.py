@@ -1,7 +1,7 @@
 """Scoped database projections for dashboard and application screens."""
 
 from fastapi import HTTPException
-from sqlalchemy import func, select
+from sqlalchemy import Select, func, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.models import (
@@ -37,7 +37,7 @@ def refresh_expired_applications(db: Session) -> None:
         db.commit()
 
 
-def application_query():
+def application_query() -> Select[tuple[Application]]:
     """Load only the relationships needed by the public application contract."""
     return select(Application).options(
         selectinload(Application.student).selectinload(Student.user),
@@ -46,7 +46,7 @@ def application_query():
     )
 
 
-def assignment_query():
+def assignment_query() -> Select[tuple[Assignment]]:
     """Load students and topic cards together to avoid a query per row."""
     return select(Assignment).options(
         selectinload(Assignment.student).selectinload(Student.user),
@@ -172,7 +172,7 @@ def supervisor_student(db: Session, actor: User, student_id: int) -> StudentDeta
     )
 
 
-def workload_query():
+def workload_query() -> Select[tuple[Teacher, int]]:
     """Count active assignments once and retain supervisors with zero load."""
     loads = (
         select(

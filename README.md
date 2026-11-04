@@ -1,5 +1,10 @@
 # DiplomNavigator
 
+Полный запуск с нуля, Swagger и три проверяемых сценария:
+[USER.md](USER.md). Текущие [API и роли](docs/api-endpoints.md),
+[история миграций](docs/migration-history.md), [проверка демо](docs/technical-demo.md).
+Повторяемый seed-сценарий Docker → Swagger → допуск к защите: [TRY1.md](TRY1.md).
+
 ## Контракты экранов и аудит API
 
 Сверка Swagger с текстовой расшифровкой макетов: [TASK.md](TASK.md).
@@ -35,7 +40,7 @@ migrations/              # версии Alembic для изменения БД
 scripts/                 # CLI и служебные скрипты (seed, admin, DDL)
 seed/data/               # JSON-файлы фиктивных данных
 tests/                   # API- и интеграционные тесты
-docs/                    # ER, DBML, словарь данных и вопросы аналитику
+docs/                    # API, ER, миграции и материалы проверки PR
 sql/                     # сгенерированная SQL-схема
 ```
 
@@ -117,7 +122,8 @@ sql/                     # сгенерированная SQL-схема
    - `admitted_to_defense`;
    - `defended`.
 
-   Процент выполнения ограничен диапазоном от 0 до 100. Для этапа
+   Процент выполнения ограничен диапазоном от 0 до 100. При
+   `admitted_to_defense` он принудительно становится 100. Для этапа
    `defended` требуется значение `100`; после этого закрепление получает
    статус `completed`.
 
@@ -131,16 +137,10 @@ sql/                     # сгенерированная SQL-схема
 
 ## Быстрый запуск через Docker
 
-Создайте `.env` в корне проекта:
-
-```env
-POSTGRES_USER=postgres
-POSTGRES_PASSWORD=postgres
-POSTGRES_DB=diplom_navigator
-POSTGRES_PORT=5432
-SECRET_KEY=change-me-for-local-development
-APPLICATION_DECISION_TIMEOUT_MINUTES=2
-```
+Скопируйте `.env.example` в `.env`, задайте собственные реквизиты PostgreSQL,
+случайный `SECRET_KEY` не короче 32 байт и обязательный `SEED_PASSWORD`
+длиной 12–128 символов. Точные параметры и согласование локального порта:
+[USER.md](USER.md#2-клонирование-и-настройки).
 
 Запустите PostgreSQL и приложение:
 

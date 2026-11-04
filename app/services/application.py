@@ -3,7 +3,7 @@
 from datetime import UTC, datetime, timedelta
 
 from fastapi import HTTPException
-from sqlalchemy import select
+from sqlalchemy import Select, select
 from sqlalchemy.orm import Session
 
 from app import config
@@ -11,12 +11,16 @@ from app.models import (
     Application,
     ApplicationStatus,
     ApplicationStatusHistory,
+    Assignment,
+    AssignmentStatus,
+    Student,
     Topic,
     TopicArchiveReason,
     TopicStatus,
     User,
 )
 from app.schemas.application import ApplicationCreate
+from app.services.workflow import commit_workflow
 
 
 def application_deadline(created_at: datetime) -> datetime:
@@ -30,11 +34,15 @@ def expire_overdue_applications(db: Session, now: datetime | None = None) -> int
     now = now or datetime.now(UTC)
     applications = list(
         db.scalars(
-            select(Application).where(
+            select(Application)
+            .where(
                 Application.status == ApplicationStatus.PENDING,
                 Application.expires_at.is_not(None),
                 Application.expires_at <= now,
             )
+            .order_by(Application.id)
+            .with_for_update(skip_locked=True)
+            .execution_options(populate_existing=True)
         )
     )
     for application in applications:
@@ -50,7 +58,7 @@ def expire_overdue_applications(db: Session, now: datetime | None = None) -> int
                 created_at=now,
             )
         )
-        topic = db.get(Topic, application.topic_id)
+        topic = db.scalar(select(Topic).where(Topic.id == application.topic_id).with_for_update())
         if topic is not None and topic.status == TopicStatus.PUBLISHED:
             topic.status = TopicStatus.ARCHIVED
             topic.archived_at = now
@@ -67,11 +75,10 @@ def create_application(
     """Create one pending application for the authenticated student."""
     if actor.student is None:
         raise HTTPException(status_code=409, detail="Student profile is required")
-    expire_overdue_applications(db)
+    if expire_overdue_applications(db):
+        db.commit()
     student = actor.student
-    topic = db.scalar(
-        select(Topic).where(Topic.id == topic_id).with_for_update()
-    )
+    topic = db.scalar(select(Topic).where(Topic.id == topic_id).with_for_update())
     if topic is None:
         raise HTTPException(status_code=404, detail="Topic not found")
     if topic.status != TopicStatus.PUBLISHED:
@@ -79,13 +86,32 @@ def create_application(
     now = datetime.now(UTC)
     if topic.department_id != student.department_id:
         raise HTTPException(status_code=403, detail="Topic is outside student's department")
+    db.scalar(select(Student).where(Student.id == student.id).with_for_update())
+    if (
+        db.scalar(
+            select(Assignment.id).where(
+                Assignment.student_id == student.id,
+                Assignment.status == AssignmentStatus.ACTIVE,
+            )
+        )
+        is not None
+    ):
+        raise HTTPException(status_code=409, detail="Student already has an active assignment")
+    if (
+        db.scalar(
+            select(Assignment.id).where(
+                Assignment.topic_id == topic.id,
+                Assignment.status != AssignmentStatus.CANCELLED,
+            )
+        )
+        is not None
+    ):
+        raise HTTPException(status_code=409, detail="Topic already has an assignment")
     if db.scalar(
         select(Application.id).where(
             Application.student_id == student.id,
             Application.topic_id == topic.id,
-            Application.status.in_(
-                (ApplicationStatus.PENDING, ApplicationStatus.APPROVED)
-            ),
+            Application.status.in_((ApplicationStatus.PENDING, ApplicationStatus.APPROVED)),
         )
     ):
         raise HTTPException(status_code=409, detail="Student already has an active application")
@@ -122,12 +148,12 @@ def create_application(
         )
     )
     db.add(application)
-    db.commit()
+    commit_workflow(db)
     db.refresh(application)
     return application
 
 
-def student_topic_query(actor: User):
+def student_topic_query(actor: User) -> Select[tuple[Topic]]:
     """Return published topics not blocked by this student's cooldown."""
     if actor.student is None:
         raise HTTPException(status_code=409, detail="Student profile is required")
@@ -141,4 +167,7 @@ def student_topic_query(actor: User):
         Topic.status == TopicStatus.PUBLISHED,
         Topic.department_id == actor.student.department_id,
         ~Topic.id.in_(blocked_topics),
+        ~Topic.id.in_(
+            select(Assignment.topic_id).where(Assignment.status != AssignmentStatus.CANCELLED)
+        ),
     )
