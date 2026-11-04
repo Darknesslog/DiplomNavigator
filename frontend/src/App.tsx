@@ -734,15 +734,15 @@ function Dashboard({
   )
 }
 
-function StatCard({ label, value, detail, change, icon, accent }: {
-  label: string; value: string; detail: string; change: string; icon: string; accent: string
+function StatCard({ label, value, detail, change, icon, accent = '' }: {
+  label: string; value: string | number; detail: string; change?: string; icon: string; accent?: string
 }) {
   return (
     <div className="stat-card">
       <div className="stat-top"><span className="stat-label">{label}</span><span className={`stat-icon ${accent}`}>{icon}</span></div>
       <div className="stat-value">{value}</div>
       <div className="stat-detail">{detail}</div>
-      <div className={`stat-change ${accent}`}>{change}</div>
+      {change && <div className={`stat-change ${accent}`}>{change}</div>}
     </div>
   )
 }

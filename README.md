@@ -1,5 +1,10 @@
 # DiplomNavigator
 
+Полный запуск с нуля, Swagger и три проверяемых сценария:
+[USER.md](USER.md). Текущие [API и роли](docs/api-endpoints.md),
+[история миграций](docs/migration-history.md), [проверка демо](docs/technical-demo.md).
+Повторяемый seed-сценарий Docker → Swagger → допуск к защите: [TRY1.md](TRY1.md).
+
 ## Контракты экранов и аудит API
 
 Сверка Swagger с текстовой расшифровкой макетов: [TASK.md](TASK.md).
@@ -20,7 +25,24 @@ Alembic и PostgreSQL.
 ## Структура проекта
 
 ```text
-app/
+project/
+├── backend/              # FastAPI, модели, миграции, seed и backend-тесты
+├── frontend/             # React/Vite-прототип
+├── docs/                 # API, ER, миграции и материалы проверки
+├── feature/              # описания отдельных функциональных блоков
+├── Dockerfile
+├── docker-compose*.yml
+├── pyproject.toml
+├── uv.lock
+├── alembic.ini
+├── README.md
+└── USER.md
+```
+
+Внутри `backend/`:
+
+```text
+backend/app/
 ├── main.py              # создание FastAPI-приложения и подключение роутеров
 ├── config.py            # настройки из .env и переменных окружения
 ├── db.py                # SQLAlchemy engine, SessionLocal и get_db
@@ -31,27 +53,27 @@ app/
 ├── services/            # бизнес-логика и проверки доступа
 └── models/              # SQLAlchemy-модели и перечисления
 
-migrations/              # версии Alembic для изменения БД
-scripts/                 # CLI и служебные скрипты (seed, admin, DDL)
-seed/data/               # JSON-файлы фиктивных данных
-tests/                   # API- и интеграционные тесты
-docs/                    # ER, DBML, словарь данных и вопросы аналитику
+backend/migrations/              # версии Alembic для изменения БД
+backend/scripts/                 # CLI и служебные скрипты (seed, admin, DDL)
+backend/seed/data/               # JSON-файлы фиктивных данных
+backend/tests/                   # API- и интеграционные тесты
+docs/                    # API, ER, миграции и материалы проверки PR
 sql/                     # сгенерированная SQL-схема
 ```
 
 ### Как размещать новый код
 
-- Новый HTTP endpoint добавляется в `app/api/`.
-- Новая бизнес-операция — в соответствующий модуль `app/services/`.
-- Входные и выходные контракты — в `app/schemas/`.
-- Новая таблица или поле — в `app/models/`, затем отдельной миграцией
-  в `migrations/versions/`.
-- Общие модели и перечисления экспортируются через `app/models/__init__.py`.
-- Тесты для новой функции добавляются в `tests/`.
+- Новый HTTP endpoint добавляется в `backend/app/api/`.
+- Новая бизнес-операция — в соответствующий модуль `backend/app/services/`.
+- Входные и выходные контракты — в `backend/app/schemas/`.
+- Новая таблица или поле — в `backend/app/models/`, затем отдельной миграцией
+  в `backend/migrations/versions/`.
+- Общие модели и перечисления экспортируются через `backend/app/models/__init__.py`.
+- Тесты для новой функции добавляются в `backend/tests/`.
 - Изменения схемы отражаются также в `docs/`, а при необходимости
   обновляется `sql/schema.sql`.
-- Разовые команды и загрузчики данных размещаются в `scripts/`, а исходные
-  JSON-фикстуры — в `seed/data/`.
+- Разовые команды и загрузчики данных размещаются в `backend/scripts/`, а исходные
+  JSON-фикстуры — в `backend/seed/data/`.
 
 Не следует помещать бизнес-логику в роутеры: роутер должен разобрать запрос,
 передать управление сервису и вернуть результат.
@@ -117,7 +139,8 @@ sql/                     # сгенерированная SQL-схема
    - `admitted_to_defense`;
    - `defended`.
 
-   Процент выполнения ограничен диапазоном от 0 до 100. Для этапа
+   Процент выполнения ограничен диапазоном от 0 до 100. При
+   `admitted_to_defense` он принудительно становится 100. Для этапа
    `defended` требуется значение `100`; после этого закрепление получает
    статус `completed`.
 
@@ -131,23 +154,17 @@ sql/                     # сгенерированная SQL-схема
 
 ## Быстрый запуск через Docker
 
-Создайте `.env` в корне проекта:
-
-```env
-POSTGRES_USER=postgres
-POSTGRES_PASSWORD=postgres
-POSTGRES_DB=diplom_navigator
-POSTGRES_PORT=5432
-SECRET_KEY=change-me-for-local-development
-APPLICATION_DECISION_TIMEOUT_MINUTES=2
-```
+Скопируйте `.env.example` в `.env`, задайте собственные реквизиты PostgreSQL,
+случайный `SECRET_KEY` не короче 32 байт и обязательный `SEED_PASSWORD`
+длиной 12–128 символов. Точные параметры и согласование локального порта:
+[USER.md](USER.md#2-клонирование-и-настройки).
 
 Запустите PostgreSQL и приложение:
 
 ```powershell
 docker compose up -d --build
 docker compose exec app alembic upgrade head
-docker compose exec app python -m scripts.seed
+docker compose exec app python -m backend.scripts.seed
 ```
 
 Проверка:
@@ -169,8 +186,8 @@ http://localhost:8000/docs
 
 ```powershell
 python -m alembic upgrade head
-python -m scripts.seed
-python -m uvicorn app.main:app --reload
+python -m backend.scripts.seed
+python -m uvicorn backend.app.main:app --reload
 ```
 
 Для запуска только базы:
@@ -178,12 +195,12 @@ python -m uvicorn app.main:app --reload
 ```powershell
 docker compose -f docker-compose.db.yml up -d
 python -m alembic upgrade head
-python -m scripts.seed
-python -m uvicorn app.main:app --reload
+python -m backend.scripts.seed
+python -m uvicorn backend.app.main:app --reload
 ```
 
 Seed-скрипт идемпотентен и не создает дубликаты при повторном запуске.
-Тестовые пользователи и данные описаны в [seed/README.md](seed/README.md).
+Тестовые пользователи и данные описаны в [backend/seed/README.md](backend/seed/README.md).
 
 ## Проверки
 

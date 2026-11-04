@@ -1,4 +1,4 @@
--- Сгенерировано scripts/dump_ddl.py из app/models.
+-- Сгенерировано backend/scripts/dump_ddl.py из backend/app/models.
 -- НЕ РЕДАКТИРОВАТЬ ВРУЧНУЮ: правки делаются в моделях и пересобираются.
 -- Для накатывания в рабочую БД используйте Alembic, а не этот файл.
 
@@ -268,6 +268,8 @@ COMMENT ON COLUMN topics.status IS 'draft / published / rejected / archived';
 COMMENT ON COLUMN topics.source IS 'Кто предложил: преподаватель, студент или компания';
 COMMENT ON COLUMN topics.company_name IS 'Организация, если тема от предприятия';
 COMMENT ON COLUMN topics.published_at IS 'Когда тема стала видна студентам';
+COMMENT ON COLUMN topics.archived_at IS 'Когда тема попала в архив';
+COMMENT ON COLUMN topics.archive_reason IS 'Причина архивации: deleted / completed / expired';
 COMMENT ON COLUMN topics.created_at IS 'Когда запись создана';
 COMMENT ON COLUMN topics.updated_at IS 'Когда запись последний раз менялась';
 
@@ -292,10 +294,10 @@ CREATE TABLE applications (
 );
 
 CREATE INDEX ix_applications_decided_by_user_id ON applications (decided_by_user_id);
+CREATE INDEX ix_applications_expires_at_pending ON applications (expires_at) WHERE status = 'pending';
 CREATE INDEX ix_applications_status ON applications (status);
 CREATE INDEX ix_applications_student_id ON applications (student_id);
 CREATE INDEX ix_applications_topic_id ON applications (topic_id);
-CREATE INDEX ix_applications_expires_at_pending ON applications (expires_at) WHERE status = 'pending';
 CREATE UNIQUE INDEX uq_applications_student_id_topic_id_active ON applications (student_id, topic_id) WHERE status IN ('pending', 'approved');
 CREATE UNIQUE INDEX uq_applications_topic_id_active ON applications (topic_id) WHERE status IN ('pending', 'approved');
 
@@ -303,7 +305,7 @@ COMMENT ON TABLE applications IS 'Заявки студентов на темы'
 COMMENT ON COLUMN applications.id IS 'Первичный ключ';
 COMMENT ON COLUMN applications.student_id IS 'Кто подал заявку';
 COMMENT ON COLUMN applications.topic_id IS 'На какую тему';
-COMMENT ON COLUMN applications.status IS 'pending / approved / rejected / withdrawn / expired';
+COMMENT ON COLUMN applications.status IS 'pending / approved / rejected / withdrawn';
 COMMENT ON COLUMN applications.motivation IS 'Почему студент хочет эту тему';
 COMMENT ON COLUMN applications.decided_by_user_id IS 'Кто принял решение по заявке';
 COMMENT ON COLUMN applications.decided_at IS 'Когда принято решение';
@@ -319,6 +321,8 @@ CREATE TABLE assignments (
 	topic_id BIGINT NOT NULL,
 	supervisor_id BIGINT NOT NULL,
 	status VARCHAR(32) DEFAULT 'active' NOT NULL,
+	progress_percent SMALLINT DEFAULT 0 NOT NULL,
+	current_stage VARCHAR(32) DEFAULT 'in_progress' NOT NULL,
 	assigned_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
 	order_number VARCHAR(50),
 	order_date DATE,
@@ -326,18 +330,20 @@ CREATE TABLE assignments (
 	created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
 	updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
 	CONSTRAINT pk_assignments PRIMARY KEY (id),
+	CONSTRAINT ck_assignments_assignment_progress_percent_range CHECK (progress_percent BETWEEN 0 AND 100),
 	CONSTRAINT ck_assignments_cancelled_requires_reason CHECK (status <> 'cancelled' OR cancel_reason IS NOT NULL),
 	CONSTRAINT fk_assignments_student_id_students FOREIGN KEY(student_id) REFERENCES students (id) ON DELETE RESTRICT,
 	CONSTRAINT fk_assignments_topic_id_topics FOREIGN KEY(topic_id) REFERENCES topics (id) ON DELETE RESTRICT,
 	CONSTRAINT fk_assignments_supervisor_id_teachers FOREIGN KEY(supervisor_id) REFERENCES teachers (id) ON DELETE RESTRICT,
-	CONSTRAINT ck_assignments_assignment_status CHECK (status IN ('active', 'completed', 'cancelled'))
+	CONSTRAINT ck_assignments_assignment_status CHECK (status IN ('active', 'completed', 'cancelled')),
+	CONSTRAINT ck_assignments_assignment_stage CHECK (current_stage IN ('in_progress', 'under_review', 'admitted_to_defense', 'defended'))
 );
 
 CREATE INDEX ix_assignments_student_id ON assignments (student_id);
 CREATE INDEX ix_assignments_supervisor_id ON assignments (supervisor_id);
 CREATE INDEX ix_assignments_topic_id ON assignments (topic_id);
 CREATE UNIQUE INDEX uq_assignments_student_id_active ON assignments (student_id) WHERE status = 'active';
-CREATE UNIQUE INDEX uq_assignments_topic_id_active ON assignments (topic_id) WHERE status = 'active';
+CREATE UNIQUE INDEX uq_assignments_topic_not_cancelled ON assignments (topic_id) WHERE status <> 'cancelled';
 
 COMMENT ON TABLE assignments IS 'Итоговые закрепления тем за студентами';
 COMMENT ON COLUMN assignments.id IS 'Первичный ключ';
@@ -345,6 +351,8 @@ COMMENT ON COLUMN assignments.student_id IS 'Студент';
 COMMENT ON COLUMN assignments.topic_id IS 'Тема';
 COMMENT ON COLUMN assignments.supervisor_id IS 'Научный руководитель на момент закрепления';
 COMMENT ON COLUMN assignments.status IS 'active / completed / cancelled';
+COMMENT ON COLUMN assignments.progress_percent IS 'Процент выполнения от 0 до 100';
+COMMENT ON COLUMN assignments.current_stage IS 'Текущий этап работы';
 COMMENT ON COLUMN assignments.assigned_at IS 'Когда тема закреплена';
 COMMENT ON COLUMN assignments.order_number IS 'Номер приказа о закреплении тем';
 COMMENT ON COLUMN assignments.order_date IS 'Дата приказа';
@@ -362,8 +370,8 @@ CREATE TABLE application_status_history (
 	created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
 	CONSTRAINT pk_application_status_history PRIMARY KEY (id),
 	CONSTRAINT fk_application_status_history_application_id_applications FOREIGN KEY(application_id) REFERENCES applications (id) ON DELETE CASCADE,
-	CONSTRAINT ck_application_status_history_application_status_from CHECK (from_status IN ('pending', 'approved', 'rejected', 'withdrawn')),
-	CONSTRAINT ck_application_status_history_application_status_to CHECK (to_status IN ('pending', 'approved', 'rejected', 'withdrawn')),
+	CONSTRAINT ck_application_status_history_application_status_from CHECK (from_status IN ('pending', 'approved', 'rejected', 'withdrawn', 'expired')),
+	CONSTRAINT ck_application_status_history_application_status_to CHECK (to_status IN ('pending', 'approved', 'rejected', 'withdrawn', 'expired')),
 	CONSTRAINT fk_application_status_history_changed_by_user_id_users FOREIGN KEY(changed_by_user_id) REFERENCES users (id) ON DELETE SET NULL
 );
 

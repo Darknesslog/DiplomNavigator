@@ -21,9 +21,9 @@ dependencies = [
 ]
 
 [tool.uv]
-# Приложение запускается через uvicorn (app.main:app), а не ставится как пакет.
-# Без этой строки uv_build ищет src/diplomnavigator/__init__.py: после перехода
-# на layout app/ его нет, и `uv sync` / сборка Docker-образа падают.
+# Приложение запускается через uvicorn (backend.app.main:app), а не ставится как пакет.
+# Без этой строки uv_build ищет src/diplomnavigator/__init__.py: приложение
+# находится в backend/ и не является устанавливаемым пакетом.
 package = false
 
 [dependency-groups]
@@ -35,7 +35,7 @@ dev = [
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
-testpaths = ["tests"]
+testpaths = ["backend/tests"]
 
 [tool.ruff]
 line-length = 100

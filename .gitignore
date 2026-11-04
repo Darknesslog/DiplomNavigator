@@ -38,6 +38,15 @@ GEMINI.md
 /.github/agents/
 /docs/agent-development.md
 
+# Keep only the PR review documentation; generated/local notes stay on disk.
+/docs/*
+!/docs/authentication.md
+!/docs/api-endpoints.md
+!/docs/er.md
+!/docs/migration-history.md
+!/docs/technical-demo.md
+!/docs/test-summary.md
+
 # Local MCP configuration and repository intelligence
 /.mcp.json
 /.repowise/
