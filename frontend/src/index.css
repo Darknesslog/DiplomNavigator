@@ -1,32 +1,24 @@
-:root {
-  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  color: #1d2f57;
-  background: #ffffff;
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-html {
-  min-width: 320px;
-  min-height: 100%;
-  background: #ffffff;
-}
-
-body {
-  min-width: 320px;
-  min-height: 100vh;
-  margin: 0;
-  background: #ffffff;
-}
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
 * {
   box-sizing: border-box;
+  margin: 0;
+  padding: 0;
 }
 
-button,
-input,
-select {
-  font-family: inherit;
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  background-color: #FFFFFF;
+  color: #14223D;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Переменные цветов из спецификации */
+:root {
+  --color-brand-blue: #14223D;
+  --color-accent-yellow: #EDAC33;
+  --color-accent-yellow-hover: #e09f25;
+  --color-border: #E2E8F0;
+  --color-text-dark: #1E293B;
+  --color-text-muted: #64748B;
 }
