@@ -16,7 +16,7 @@
 | GET | `/departments` | Все авторизованные | Return the department directory to authenticated users. |
 | PATCH | `/users/{user_id}/department` | admin, zavkaf | Assign a profile's department; only admins may transfer between departments. |
 | PATCH | `/users/{user_id}/role` | admin | Assign roles as admin, retaining profiles and preventing self-demotion. |
-| POST | `/topics` | admin, nauchruk, zavkaf | Create a draft topic owned by the authenticated supervisor or department. |
+| POST | `/topics` | admin, nauchruk, zavkaf | Create a topic owned by the authenticated supervisor or department; a company topic created by a department head is published immediately. |
 | GET | `/topics` | Все авторизованные | List only topics visible to the authenticated role. |
 | POST | `/topics/{topic_id}/applications` | student | Submit a pending topic application for the authenticated student. |
 | GET | `/topics/{topic_id}` | Все авторизованные | Return one visible topic. |

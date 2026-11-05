@@ -78,3 +78,13 @@ class TopicResponse(BaseModel):
         if self.status == TopicStatus.PUBLISHED and self.is_reserved:
             return "Занята"
         return TOPIC_LABELS[self.status]
+
+    @computed_field
+    @property
+    def source_label(self) -> str:
+        """Display the origin of the topic for catalog users."""
+        if self.source == TopicSource.COMPANY:
+            return "Тема от партнера"
+        if self.source == TopicSource.STUDENT:
+            return "Тема от студента"
+        return "Тема от научного руководителя"

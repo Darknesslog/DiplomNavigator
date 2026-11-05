@@ -46,6 +46,16 @@ def test_department_head_can_create_company_topic_for_own_department(
     assert response.status_code == 201, response.text
     assert response.json()["source"] == "company"
     assert response.json()["company_name"] == "Partner LLC"
+    assert response.json()["status"] == "published"
+    assert response.json()["published_at"] is not None
+    assert response.json()["source_label"] == "Тема от партнера"
+    student_topics = client.get("/topics", headers=bearer(3))
+    assert student_topics.status_code == 200
+    partner_topic = next(
+        topic for topic in student_topics.json() if topic["id"] == response.json()["id"]
+    )
+    assert partner_topic["status_label"] == "Открыта для заявок"
+    assert partner_topic["source_label"] == "Тема от партнера"
 
 
 def test_supervisor_cannot_create_topic_for_another_supervisor(client: TestClient, bearer):

@@ -220,6 +220,10 @@ def create_topic(db: Session, data: TopicCreate, actor: User) -> Topic:
                 status_code=409, detail="Proposing student is outside the topic department"
             )
 
+    is_published_company_topic = (
+        actor.role == UserRole.ZAVKAF and data.source == TopicSource.COMPANY
+    )
+    now = datetime.now(UTC) if is_published_company_topic else None
     topic = Topic(
         period_id=data.period_id,
         supervisor_id=supervisor.id,
@@ -230,7 +234,8 @@ def create_topic(db: Session, data: TopicCreate, actor: User) -> Topic:
         source=data.source,
         company_name=data.company_name,
         proposed_by_student_id=data.proposed_by_student_id,
-        status=TopicStatus.DRAFT,
+        status=TopicStatus.PUBLISHED if is_published_company_topic else TopicStatus.DRAFT,
+        published_at=now,
     )
     db.add(topic)
     db.commit()
