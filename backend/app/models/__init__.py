@@ -15,6 +15,7 @@ from backend.app.models.enums import (
     PeriodStatus,
     Semester,
     TopicArchiveReason,
+    TopicDeletionRequestStatus,
     TopicSource,
     TopicStatus,
     UserRole,
@@ -22,7 +23,7 @@ from backend.app.models.enums import (
 from backend.app.models.misc import Attachment, Notification
 from backend.app.models.period import AcademicPeriod
 from backend.app.models.refs import Department, Faculty, StudyGroup
-from backend.app.models.topic import Topic
+from backend.app.models.topic import Topic, TopicDeletionRequest
 from backend.app.models.workflow import Application, ApplicationStatusHistory, Assignment
 
 __all__ = [
@@ -47,6 +48,8 @@ __all__ = [
     "TimestampMixin",
     "Topic",
     "TopicArchiveReason",
+    "TopicDeletionRequest",
+    "TopicDeletionRequestStatus",
     "TopicSource",
     "TopicStatus",
     "User",

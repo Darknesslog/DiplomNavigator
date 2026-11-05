@@ -62,6 +62,14 @@ class TopicArchiveReason(StrEnum):
     EXPIRED = "expired"
 
 
+class TopicDeletionRequestStatus(StrEnum):
+    """Lifecycle of a supervisor's topic deletion request."""
+
+    PENDING = "pending"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+
+
 class TopicSource(StrEnum):
     """Кто предложил тему."""
 
@@ -102,6 +110,7 @@ class NotificationKind(StrEnum):
 
     APPLICATION_APPROVED = "application_approved"
     APPLICATION_REJECTED = "application_rejected"
+    ASSIGNMENT_PROGRESS_UPDATED = "assignment_progress_updated"
 
 
 def db_enum(enum_cls: type[StrEnum], name: str, length: int = 32) -> Enum:

@@ -30,7 +30,7 @@ from backend.app.schemas.supervisor import (
     AssignmentResponse,
 )
 from backend.app.services.management import manually_assign, update_limit
-from backend.app.services.read_models import supervisor_assignments
+from backend.app.services.read_models import student_assignments, supervisor_assignments
 from backend.app.services.supervisor import decide_application, update_assignment_progress
 
 router = APIRouter(tags=["workflows"])
@@ -133,6 +133,17 @@ def my_notifications(
             .limit(limit)
         )
     ]
+
+
+@router.get("/works/me", response_model=list[AssignmentDetail])
+def my_works(
+    db: DbSession,
+    actor: Annotated[User, Depends(require_roles(UserRole.STUDENT))],
+    offset: Offset = 0,
+    limit: Limit = 50,
+) -> list[AssignmentDetail]:
+    """Read the current student's assignments and progress."""
+    return student_assignments(db, actor, offset, limit)
 
 
 @router.get("/study-groups", response_model=list[StudyGroupResponse])

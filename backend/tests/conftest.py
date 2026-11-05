@@ -26,6 +26,7 @@ from backend.app.models import (
     StudyGroup,
     Teacher,
     Topic,
+    TopicDeletionRequest,
     TopicStatus,
     User,
     UserRole,
@@ -74,6 +75,7 @@ def sessions(encoded_password: str, monkeypatch) -> Iterator[sessionmaker[Sessio
         ApplicationStatusHistory.__table__,
         Assignment.__table__,
         Notification.__table__,
+        TopicDeletionRequest.__table__,
     ]
     Base.metadata.create_all(engine, tables=tables)
     factory = sessionmaker(bind=engine, expire_on_commit=False)

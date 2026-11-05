@@ -65,9 +65,16 @@ class TopicResponse(BaseModel):
     archive_reason: TopicArchiveReason | None
     created_at: datetime
     updated_at: datetime
+    is_reserved: bool = Field(
+        description="Тема уже закреплена за студентом и недоступна для новой заявки."
+    )
 
     @computed_field
     @property
     def status_label(self) -> str:
         """Display a localized label while preserving the existing status enum."""
+        if self.status == TopicStatus.ARCHIVED and self.archive_reason == TopicArchiveReason.COMPLETED:
+            return "В архиве (завершена)"
+        if self.status == TopicStatus.PUBLISHED and self.is_reserved:
+            return "Занята"
         return TOPIC_LABELS[self.status]

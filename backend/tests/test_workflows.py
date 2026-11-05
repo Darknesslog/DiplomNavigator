@@ -3,7 +3,15 @@
 import pytest
 from sqlalchemy import select
 
-from backend.app.models import Application, Assignment, Notification, Student, Topic
+from backend.app.models import (
+    Application,
+    Assignment,
+    Notification,
+    Student,
+    Topic,
+    TopicDeletionRequest,
+    TopicDeletionRequestStatus,
+)
 
 
 def approve(client, bearer, user_id=4):
@@ -215,4 +223,66 @@ def test_assigned_topic_cannot_be_reserved_by_another_student(client, bearer, se
         db.get(Student, 2).department_id = 1
         db.commit()
     assert client.post("/topics/1/applications", json={}, headers=bearer(5)).status_code == 409
-    assert all(topic["id"] != 1 for topic in client.get("/topics", headers=bearer(5)).json())
+    topics = client.get("/topics", headers=bearer(5)).json()
+    topic = next(topic for topic in topics if topic["id"] == 1)
+    assert topic["status"] == "published"
+    assert topic["is_reserved"] is True
+    assert topic["status_label"] == "Занята"
+
+
+def test_supervisor_requests_topic_deletion_and_head_rejects(client, bearer, sessions):
+    response = client.post(
+        "/topics/1/deletion-requests",
+        json={"reason": "Тема больше не соответствует плану кафедры."},
+        headers=bearer(4),
+    )
+    assert response.status_code == 201, response.text
+    request_id = response.json()["id"]
+
+    listed = client.get("/topics/deletion-requests", headers=bearer(2))
+    assert listed.status_code == 200
+    assert listed.json()[0]["id"] == request_id
+
+    decision = client.patch(
+        f"/topics/deletion-requests/{request_id}/reject",
+        json={"comment": "Оставить тему в банке тем."},
+        headers=bearer(2),
+    )
+    assert decision.status_code == 200
+    assert decision.json()["status"] == "rejected"
+    assert client.get("/topics/1", headers=bearer(3)).json()["status"] == "published"
+
+    with sessions() as db:
+        request = db.get(TopicDeletionRequest, request_id)
+        assert request.status == TopicDeletionRequestStatus.REJECTED
+
+
+def test_head_approves_topic_deletion_and_archives_topic(client, bearer):
+    response = client.post(
+        "/topics/1/deletion-requests",
+        json={"reason": "Тема больше не нужна."},
+        headers=bearer(4),
+    )
+    assert response.status_code == 201
+    request_id = response.json()["id"]
+
+    decision = client.patch(
+        f"/topics/deletion-requests/{request_id}/approve",
+        json={"comment": "Архивировано по решению кафедры."},
+        headers=bearer(2),
+    )
+    assert decision.status_code == 200
+    assert decision.json()["status"] == "approved"
+    topic = client.get("/topics/1", headers=bearer(2))
+    assert topic.status_code == 200
+    assert topic.json()["status"] == "archived"
+    assert topic.json()["archive_reason"] == "deleted"
+
+
+def test_supervisor_cannot_request_another_supervisors_topic_deletion(client, bearer):
+    response = client.post(
+        "/topics/1/deletion-requests",
+        json={},
+        headers=bearer(6),
+    )
+    assert response.status_code == 403

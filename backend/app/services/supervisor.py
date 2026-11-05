@@ -18,6 +18,7 @@ from backend.app.models import (
     Student,
     Teacher,
     Topic,
+    TopicArchiveReason,
     TopicStatus,
     User,
 )
@@ -155,12 +156,34 @@ def update_assignment_progress(
         raise HTTPException(status_code=409, detail="Only active assignments can be updated")
     if data.current_stage == AssignmentStage.DEFENDED and data.progress_percent != 100:
         raise HTTPException(status_code=422, detail="Defended work must have 100 percent progress")
+    now = datetime.now(UTC)
     assignment.progress_percent = (
         100 if data.current_stage == AssignmentStage.ADMITTED_TO_DEFENSE else data.progress_percent
     )
     assignment.current_stage = data.current_stage
     if data.current_stage == AssignmentStage.DEFENDED:
         assignment.status = AssignmentStatus.COMPLETED
+        assignment.topic.status = TopicStatus.ARCHIVED
+        assignment.topic.published_at = None
+        assignment.topic.archived_at = now
+        assignment.topic.archive_reason = TopicArchiveReason.COMPLETED
+    db.add(
+        Notification(
+            user_id=assignment.student.user_id,
+            kind=NotificationKind.ASSIGNMENT_PROGRESS_UPDATED,
+            title="Обновлён прогресс ВКР",
+            body=f"Этап: {data.current_stage.value}; прогресс: {assignment.progress_percent}%.",
+            created_at=now,
+            payload={
+                "assignment_id": assignment.id,
+                "topic_id": assignment.topic_id,
+                "current_stage": data.current_stage.value,
+                "progress_percent": assignment.progress_percent,
+                "assignment_status": assignment.status.value,
+            },
+            is_read=False,
+        )
+    )
     db.commit()
     db.refresh(assignment)
     return assignment

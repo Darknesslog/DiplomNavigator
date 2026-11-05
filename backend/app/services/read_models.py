@@ -111,6 +111,26 @@ def supervisor_assignments(
     ]
 
 
+def student_assignments(
+    db: Session,
+    actor: User,
+    offset: int,
+    limit: int,
+) -> list[AssignmentDetail]:
+    """Read the current student's assignments and progress."""
+    if actor.student is None:
+        raise HTTPException(status_code=409, detail="Student profile is required")
+    statement = assignment_query().where(Assignment.student_id == actor.student.id)
+    return [
+        AssignmentDetail.model_validate(row)
+        for row in db.scalars(
+            statement.order_by(Assignment.assigned_at.desc(), Assignment.id.desc())
+            .offset(offset)
+            .limit(limit)
+        )
+    ]
+
+
 def supervisor_assignment(db: Session, actor: User, assignment_id: int) -> AssignmentDetail:
     """Use an ownership-filtered lookup; other supervisors' IDs are not disclosed."""
     teacher = require_supervisor_profile(actor)

@@ -167,7 +167,4 @@ def student_topic_query(actor: User) -> Select[tuple[Topic]]:
         Topic.status == TopicStatus.PUBLISHED,
         Topic.department_id == actor.student.department_id,
         ~Topic.id.in_(blocked_topics),
-        ~Topic.id.in_(
-            select(Assignment.topic_id).where(Assignment.status != AssignmentStatus.CANCELLED)
-        ),
     )
