@@ -28,7 +28,7 @@ from backend.app.schemas.dashboard import (
 from backend.app.schemas.presentation import StudentSummary
 from backend.app.schemas.supervisor import ProgressHistoryEntry
 from backend.app.services.accounts import check_department_scope, require_department
-from backend.app.services.supervisor import require_supervisor_profile
+from backend.app.services.profiles import require_supervisor_profile
 
 
 def application_query() -> Select[tuple[Application]]:

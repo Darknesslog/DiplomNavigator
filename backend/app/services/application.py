@@ -12,8 +12,6 @@ from backend.app.models import (
     Application,
     ApplicationStatus,
     ApplicationStatusHistory,
-    Assignment,
-    AssignmentStatus,
     PeriodStatus,
     Topic,
     TopicArchiveReason,
@@ -21,7 +19,11 @@ from backend.app.models import (
     User,
 )
 from backend.app.schemas.application import ApplicationCreate
-from backend.app.services.workflow import commit_workflow, lock_student
+from backend.app.services.workflow import (
+    check_assignment_availability,
+    commit_workflow,
+    lock_student,
+)
 
 
 def application_deadline(created_at: datetime) -> datetime:
@@ -76,6 +78,50 @@ def refresh_expired_applications(db: Session) -> None:
         commit_workflow(db)
 
 
+def require_period_not_closed(db: Session, period_id: int) -> None:
+    """Hold the period state stable while a student submits an application."""
+    period = db.scalar(
+        select(AcademicPeriod)
+        .where(AcademicPeriod.id == period_id)
+        .with_for_update(read=True)
+        .execution_options(populate_existing=True)
+    )
+    if period is None:
+        raise HTTPException(status_code=409, detail="Academic period not found")
+    if period.status == PeriodStatus.CLOSED:
+        raise HTTPException(status_code=403, detail="Период подачи заявок закрыт")
+
+
+def check_application_reservation(
+    db: Session, student_id: int, topic_id: int, now: datetime
+) -> None:
+    """Validate pair uniqueness, cooldown and the topic reservation in that order."""
+    if db.scalar(
+        select(Application.id).where(
+            Application.student_id == student_id,
+            Application.topic_id == topic_id,
+            Application.status.in_((ApplicationStatus.PENDING, ApplicationStatus.APPROVED)),
+        )
+    ):
+        raise HTTPException(status_code=409, detail="Student already has an active application")
+    if db.scalar(
+        select(Application.id).where(
+            Application.student_id == student_id,
+            Application.topic_id == topic_id,
+            Application.cooldown_until.is_not(None),
+            Application.cooldown_until > now,
+        )
+    ):
+        raise HTTPException(status_code=409, detail="Topic is temporarily unavailable for student")
+    if db.scalar(
+        select(Application.id).where(
+            Application.topic_id == topic_id,
+            Application.status == ApplicationStatus.PENDING,
+        )
+    ):
+        raise HTTPException(status_code=409, detail="Topic already has a pending application")
+
+
 def create_application(
     db: Session, actor: User, topic_id: int, data: ApplicationCreate
 ) -> Application:
@@ -93,66 +139,15 @@ def create_application(
     now = datetime.now(UTC)
     if topic.department_id != student.department_id:
         raise HTTPException(status_code=403, detail="Topic is outside student's department")
-    period = db.scalar(
-        select(AcademicPeriod)
-        .where(AcademicPeriod.id == topic.period_id)
-        .with_for_update(read=True)
-        .execution_options(populate_existing=True)
-    )
-    if period is None:
-        raise HTTPException(status_code=409, detail="Academic period not found")
-    if period.status == PeriodStatus.CLOSED:
-        raise HTTPException(status_code=403, detail="Период подачи заявок закрыт")
-    if (
-        db.scalar(
-            select(Assignment.id).where(
-                Assignment.student_id == student.id,
-                Assignment.status == AssignmentStatus.ACTIVE,
-            )
-        )
-        is not None
-    ):
-        raise HTTPException(status_code=409, detail="Student already has an active assignment")
-    if (
-        db.scalar(
-            select(Assignment.id).where(
-                Assignment.topic_id == topic.id,
-                Assignment.status != AssignmentStatus.CANCELLED,
-            )
-        )
-        is not None
-    ):
-        raise HTTPException(status_code=409, detail="Topic already has an assignment")
-    if db.scalar(
-        select(Application.id).where(
-            Application.student_id == student.id,
-            Application.topic_id == topic.id,
-            Application.status.in_((ApplicationStatus.PENDING, ApplicationStatus.APPROVED)),
-        )
-    ):
-        raise HTTPException(status_code=409, detail="Student already has an active application")
-    if db.scalar(
-        select(Application.id).where(
-            Application.student_id == student.id,
-            Application.topic_id == topic.id,
-            Application.cooldown_until.is_not(None),
-            Application.cooldown_until > now,
-        )
-    ):
-        raise HTTPException(status_code=409, detail="Topic is temporarily unavailable for student")
-    if db.scalar(
-        select(Application.id).where(
-            Application.topic_id == topic.id,
-            Application.status == ApplicationStatus.PENDING,
-        )
-    ):
-        raise HTTPException(status_code=409, detail="Topic already has a pending application")
+    require_period_not_closed(db, topic.period_id)
+    check_assignment_availability(db, student.id, topic.id)
+    check_application_reservation(db, student.id, topic.id, now)
     application = Application(
         student_id=student.id,
         topic_id=topic.id,
         status=ApplicationStatus.PENDING,
         motivation=data.motivation,
-        expires_at=now + timedelta(minutes=config.APPLICATION_DECISION_TIMEOUT_MINUTES),
+        expires_at=application_deadline(now),
     )
     application.history.append(
         ApplicationStatusHistory(

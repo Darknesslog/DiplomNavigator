@@ -12,9 +12,6 @@ from backend.app.models import (
     ApplicationStatus,
     ApplicationStatusHistory,
     Assignment,
-    AssignmentProgressHistory,
-    AssignmentStage,
-    AssignmentStatus,
     Notification,
     Teacher,
     Topic,
@@ -25,6 +22,7 @@ from backend.app.models.enums import NotificationKind
 from backend.app.schemas.management import LimitUpdateResponse, ManualAssignmentCreate
 from backend.app.services.accounts import check_department_scope
 from backend.app.services.application import expire_overdue_applications
+from backend.app.services.assignment_records import new_assignment
 from backend.app.services.read_models import workload_card, workload_query
 from backend.app.services.workflow import (
     commit_workflow,
@@ -110,25 +108,15 @@ def manually_assign(db: Session, actor: User, data: ManualAssignmentCreate) -> A
             created_at=now,
         )
     )
-    assignment = Assignment(
-        student_id=data.student_id,
-        topic_id=topic.id,
-        supervisor_id=teacher.id,
-        status=AssignmentStatus.ACTIVE,
-        current_stage=AssignmentStage.IN_PROGRESS,
-        progress_percent=0,
-        assigned_at=now,
+    assignment = new_assignment(
+        data.student_id,
+        topic.id,
+        teacher.id,
+        actor.id,
+        now,
+        data.comment,
     )
     db.add_all([application, assignment])
-    assignment.progress_history.append(
-        AssignmentProgressHistory(
-            changed_by_user_id=actor.id,
-            changed_at=now,
-            current_stage=AssignmentStage.IN_PROGRESS,
-            progress_percent=0,
-            comment=data.comment,
-        )
-    )
     withdraw_other_applications(db, data.student_id, actor.id, now)
     # Flush also assigns the application's identity for the notification.
     try:

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import ast
+import os
 from pathlib import Path
 
 from backend.app.main import app
@@ -30,9 +31,10 @@ def definitions(tree: ast.AST, prefix: str = "") -> list[tuple[str, ast.AST]]:
     return result
 
 
-def build_inventory() -> str:
+def build_inventory(output: Path | None = None) -> str:
     """Use AST for all app callables and OpenAPI for the paths actually registered."""
     modules = []
+    output_directory = output.resolve().parent if output else ROOT / ".tmp/reviews"
     callable_count = 0
     class_count = 0
     for path in sorted((ROOT / "backend/app").rglob("*.py")):
@@ -51,7 +53,8 @@ def build_inventory() -> str:
                 if node.returns is not None:
                     signature += f" -> {ast.unparse(node.returns)}"
             summary = (ast.get_docstring(node) or "—").splitlines()[0]
-            link = f"[{name}](../../{relative}#L{node.lineno})"
+            target = Path(os.path.relpath(path, output_directory)).as_posix()
+            link = f"[{name}](<{target}#L{node.lineno}>)"
             rows.append(f"| {link} | `{cell(signature)}` | {cell(summary)} |")
         modules.append(
             f"## {relative}\n\n"
@@ -88,7 +91,7 @@ def main() -> None:
     parser.add_argument("--output", type=Path, required=True)
     arguments = parser.parse_args()
     arguments.output.parent.mkdir(parents=True, exist_ok=True)
-    arguments.output.write_text(build_inventory(), encoding="utf-8")
+    arguments.output.write_text(build_inventory(arguments.output), encoding="utf-8")
 
 
 if __name__ == "__main__":

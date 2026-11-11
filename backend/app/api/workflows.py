@@ -3,14 +3,10 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, status
-from sqlalchemy import select
 
 from backend.app.dependencies import CurrentUser, DbSession, require_roles
 from backend.app.models import (
-    AcademicPeriod,
     AssignmentStatus,
-    Notification,
-    StudyGroup,
     User,
     UserRole,
 )
@@ -31,17 +27,15 @@ from backend.app.schemas.supervisor import (
     AssignmentResponse,
     ProgressHistoryEntry,
 )
+from backend.app.services import directories
 from backend.app.services.management import manually_assign, update_limit
+from backend.app.services.progress import revoke_admission, update_assignment_progress
 from backend.app.services.read_models import (
     assignment_progress_history,
     student_assignments,
     supervisor_assignments,
 )
-from backend.app.services.supervisor import (
-    decide_application,
-    revoke_admission,
-    update_assignment_progress,
-)
+from backend.app.services.supervisor import decide_application
 
 router = APIRouter(tags=["workflows"])
 Supervisor = Annotated[User, Depends(require_roles(UserRole.NAUCHRUK))]
@@ -135,13 +129,7 @@ def my_notifications(
     """List only this recipient's persisted notifications."""
     return [
         NotificationResponse.model_validate(row)
-        for row in db.scalars(
-            select(Notification)
-            .where(Notification.user_id == actor.id)
-            .order_by(Notification.id.desc())
-            .offset(offset)
-            .limit(limit)
-        )
+        for row in directories.recipient_notifications(db, actor.id, offset, limit)
     ]
 
 
@@ -194,9 +182,7 @@ def study_groups(
     """Read group IDs used when an administrator creates a student."""
     return [
         StudyGroupResponse.model_validate(row)
-        for row in db.scalars(
-            select(StudyGroup).order_by(StudyGroup.id).offset(offset).limit(limit)
-        )
+        for row in directories.study_groups(db, offset, limit)
     ]
 
 
@@ -210,7 +196,5 @@ def academic_periods(
     """Read period IDs used when a supervisor proposes a topic."""
     return [
         PeriodResponse.model_validate(row)
-        for row in db.scalars(
-            select(AcademicPeriod).order_by(AcademicPeriod.id).offset(offset).limit(limit)
-        )
+        for row in directories.academic_periods(db, offset, limit)
     ]

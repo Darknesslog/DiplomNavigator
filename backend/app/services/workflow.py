@@ -82,17 +82,8 @@ def withdraw_other_applications(
         )
 
 
-def lock_assignment_capacity(db: Session, topic: Topic, student_id: int) -> Teacher:
-    """Check capacity with student and topic already locked by the caller."""
-    student = lock_student(db, student_id)
-    teacher = db.scalar(
-        select(Teacher)
-        .where(Teacher.id == topic.supervisor_id)
-        .with_for_update()
-        # Authentication may have loaded this Teacher before another transaction
-        # changed the limit. Refresh its identity-map state after acquiring the lock.
-        .execution_options(populate_existing=True)
-    )
+def require_available_supervisor(teacher: Teacher | None) -> Teacher:
+    """Reject a missing, inactive or non-supervising identity."""
     if (
         teacher is None
         or not teacher.user.is_active
@@ -103,10 +94,54 @@ def lock_assignment_capacity(db: Session, topic: Topic, student_id: int) -> Teac
         )
     ):
         raise HTTPException(status_code=409, detail="Supervisor is unavailable")
+    return teacher
+
+
+def check_assignment_student(student: Student, topic: Topic) -> None:
+    """Only an active student of the topic's department may be assigned."""
     if not student.user.is_active or student.user.role != UserRole.STUDENT:
         raise HTTPException(status_code=409, detail="Student is unavailable")
     if student.department_id is None or student.department_id != topic.department_id:
         raise HTTPException(status_code=409, detail="Student and topic departments differ")
+
+
+def check_assignment_availability(db: Session, student_id: int, topic_id: int) -> None:
+    """Check the two assignment conflicts shared by reservation and final assignment."""
+    if (
+        db.scalar(
+            select(Assignment.id).where(
+                Assignment.student_id == student_id,
+                Assignment.status == AssignmentStatus.ACTIVE,
+            )
+        )
+        is not None
+    ):
+        raise HTTPException(status_code=409, detail="Student already has an active assignment")
+    if (
+        db.scalar(
+            select(Assignment.id).where(
+                Assignment.topic_id == topic_id,
+                Assignment.status != AssignmentStatus.CANCELLED,
+            )
+        )
+        is not None
+    ):
+        raise HTTPException(status_code=409, detail="Topic already has an assignment")
+
+
+def lock_assignment_capacity(db: Session, topic: Topic, student_id: int) -> Teacher:
+    """Check capacity with student and topic already locked by the caller."""
+    student = lock_student(db, student_id)
+    teacher = require_available_supervisor(
+        db.scalar(
+            select(Teacher)
+            .where(Teacher.id == topic.supervisor_id)
+            .with_for_update()
+            # Refresh the identity map only after the row lock has been acquired.
+            .execution_options(populate_existing=True)
+        )
+    )
+    check_assignment_student(student, topic)
     load = (
         db.scalar(
             select(func.count(Assignment.id)).where(
@@ -117,26 +152,7 @@ def lock_assignment_capacity(db: Session, topic: Topic, student_id: int) -> Teac
     )
     if load >= teacher.max_students:
         raise HTTPException(status_code=409, detail="Supervisor student limit reached")
-    if (
-        db.scalar(
-            select(Assignment.id).where(
-                Assignment.student_id == student.id,
-                Assignment.status == AssignmentStatus.ACTIVE,
-            )
-        )
-        is not None
-    ):
-        raise HTTPException(status_code=409, detail="Student already has an active assignment")
-    if (
-        db.scalar(
-            select(Assignment.id).where(
-                Assignment.topic_id == topic.id,
-                Assignment.status != AssignmentStatus.CANCELLED,
-            )
-        )
-        is not None
-    ):
-        raise HTTPException(status_code=409, detail="Topic already has an assignment")
+    check_assignment_availability(db, student.id, topic.id)
     return teacher
 
 

@@ -14,17 +14,14 @@ from backend.app.schemas.supervisor import (
     AssignmentProgressUpdate,
     AssignmentResponse,
 )
+from backend.app.services.progress import update_assignment_progress
 from backend.app.services.read_models import (
     supervisor_assignment,
     supervisor_assignments,
     supervisor_student,
     supervisor_students,
 )
-from backend.app.services.supervisor import (
-    decide_application,
-    supervisor_applications,
-    update_assignment_progress,
-)
+from backend.app.services.supervisor import decide_application, supervisor_applications
 
 router = APIRouter(prefix="/supervisor", tags=["supervisor"])
 Supervisor = Annotated[User, Depends(require_roles(UserRole.NAUCHRUK))]

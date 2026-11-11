@@ -2,7 +2,7 @@
 
 Дата: 2026-11-11. Ветка: `review/backend-invariants-and-inventory`.
 [PR #10](https://github.com/Darknesslog/DiplomNavigator/pull/10).
-Массовая очистка и декомпозиция этапа 3 не выполнялись.
+Результаты последующей декомпозиции: [этап 3](05-code-cleanup.md).
 
 ## B01 — закрытый период
 
@@ -22,7 +22,7 @@ AcademicPeriod под разделяемой блокировкой, обнов�
 
 ## B02 — прогресс и административный отзыв допуска
 
-[Таблица переходов](../../backend/app/services/supervisor.py) задаёт:
+[Таблица переходов](../../backend/app/services/progress.py) задаёт:
 
 | Исходный этап | Допустимые обычные переходы |
 |---|---|
