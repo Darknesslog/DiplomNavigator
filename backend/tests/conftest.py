@@ -32,9 +32,7 @@ from backend.app.models import (
     UserRole,
 )
 from backend.app.security import hash_password
-
-PASSWORD = "test-password-123!"
-TEST_SECRET = "test-only-secret-never-use-in-production-" * 2
+from backend.tests.constants import PASSWORD, TEST_SECRET
 
 
 @compiles(BigInteger, "sqlite")
@@ -50,7 +48,7 @@ def encoded_password() -> str:
 
 
 @pytest.fixture()
-def sessions(encoded_password: str, monkeypatch) -> Iterator[sessionmaker[Session]]:
+def sqlite_sessions(encoded_password: str, monkeypatch) -> Iterator[sessionmaker[Session]]:
     """Build only account-related tables and seed both sides of department boundaries."""
     monkeypatch.setattr(config, "SECRET_KEY", TEST_SECRET)
     monkeypatch.setattr(config, "LOGIN_COOLDOWN_MINUTES", 15)
@@ -183,6 +181,12 @@ def sessions(encoded_password: str, monkeypatch) -> Iterator[sessionmaker[Sessio
         db.commit()
     yield factory
     engine.dispose()
+
+
+@pytest.fixture()
+def sessions(sqlite_sessions: sessionmaker[Session]) -> sessionmaker[Session]:
+    """Default to SQLite; the integration subtree overrides only this fixture."""
+    return sqlite_sessions
 
 
 @pytest.fixture()

@@ -27,14 +27,7 @@ from backend.app.schemas.dashboard import (
 )
 from backend.app.schemas.presentation import StudentSummary
 from backend.app.services.accounts import check_department_scope, require_department
-from backend.app.services.application import expire_overdue_applications
 from backend.app.services.supervisor import require_supervisor_profile
-
-
-def refresh_expired_applications(db: Session) -> None:
-    """Apply the existing lazy timeout before rendering dashboard counters."""
-    if expire_overdue_applications(db):
-        db.commit()
 
 
 def application_query() -> Select[tuple[Application]]:
@@ -63,7 +56,6 @@ def visible_applications(
     limit: int,
 ) -> list[StudentApplicationResponse]:
     """Students see their own requests; supervisors own topics; heads their department."""
-    refresh_expired_applications(db)
     statement = application_query().join(Application.topic)
     if actor.role == UserRole.STUDENT:
         if actor.student is None:
@@ -267,8 +259,7 @@ def department_workload(
 
 
 def supervisor_dashboard(db: Session, actor: User) -> SupervisorDashboard:
-    """Aggregate the supervisor's own records after processing overdue requests."""
-    refresh_expired_applications(db)
+    """Aggregate the supervisor's own persisted records without changing state."""
     teacher = require_supervisor_profile(actor)
     load = (
         db.scalar(
@@ -311,7 +302,6 @@ def supervisor_dashboard(db: Session, actor: User) -> SupervisorDashboard:
 def head_dashboard(db: Session, actor: User, department_id: int | None) -> HeadDashboard:
     """Aggregate a single authorized department; counts are independent of pagination."""
     department = scoped_department(db, actor, department_id)
-    refresh_expired_applications(db)
     workload = [
         workload_card(teacher, load)
         for teacher, load in db.execute(

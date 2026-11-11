@@ -107,6 +107,25 @@ npm run dev -- --host 127.0.0.1 --port 5173 --strictPort
 
 ## Технологии и документация
 
+### Проверки backend
+
+Используется синхронная SQLAlchemy `Session` через `Depends(get_db)`;
+обращения к БД выполняются в `def`-роутерах. Без контейнера приложения точка
+входа — `backend.app.main:app`.
+
+```powershell
+uv sync
+uv run ruff check
+uv run pytest
+./backend/tests/integration/run_postgresql.ps1
+```
+
+Последняя команда требует запущенный Docker Desktop и поднимает отдельную
+временную PostgreSQL-базу. По умолчанию pytest выполняет SQLite-набор;
+`uv run pytest -m postgres` выбирает PostgreSQL-проверки с явно заданным
+`TEST_DATABASE_URL`. [Изоляция и ручной запуск](backend/tests/integration/README.md).
+CI запускает оба набора. [Инвентаризация методов и бизнес-пробелов](.tmp/reviews/02-business-methods.md).
+
 **Сервер:** Python 3.12–3.13, FastAPI, SQLAlchemy, Alembic, PostgreSQL.
 **Интерфейс:** React, TypeScript, Vite. **Окружение:** uv, Docker Compose.
 

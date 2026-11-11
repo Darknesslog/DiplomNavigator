@@ -23,7 +23,14 @@ def check_workflow_scope(actor: User, topic: Topic) -> None:
 
 def lock_assignment_capacity(db: Session, topic: Topic, student_id: int) -> Teacher:
     """Serialize capacity and student checks with the topic already locked."""
-    teacher = db.scalar(select(Teacher).where(Teacher.id == topic.supervisor_id).with_for_update())
+    teacher = db.scalar(
+        select(Teacher)
+        .where(Teacher.id == topic.supervisor_id)
+        .with_for_update()
+        # Authentication may have loaded this Teacher before another transaction
+        # changed the limit. Refresh its identity-map state after acquiring the lock.
+        .execution_options(populate_existing=True)
+    )
     if (
         teacher is None
         or not teacher.user.is_active

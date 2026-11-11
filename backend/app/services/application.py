@@ -69,6 +69,12 @@ def expire_overdue_applications(db: Session, now: datetime | None = None) -> int
     return len(applications)
 
 
+def refresh_expired_applications(db: Session) -> None:
+    """Persist lazy expiration as a command, outside read-only projections."""
+    if expire_overdue_applications(db):
+        commit_workflow(db)
+
+
 def create_application(
     db: Session, actor: User, topic_id: int, data: ApplicationCreate
 ) -> Application:
