@@ -2,7 +2,9 @@
 -- Удалит все данные без возможности восстановления.
 
 DROP TABLE IF EXISTS attachments CASCADE;
+DROP TABLE IF EXISTS assignment_progress_history CASCADE;
 DROP TABLE IF EXISTS application_status_history CASCADE;
+DROP TABLE IF EXISTS topic_deletion_requests CASCADE;
 DROP TABLE IF EXISTS assignments CASCADE;
 DROP TABLE IF EXISTS applications CASCADE;
 DROP TABLE IF EXISTS topics CASCADE;

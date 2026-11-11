@@ -25,13 +25,23 @@ from backend.app.schemas.management import (
     SupervisorLimitUpdate,
 )
 from backend.app.schemas.supervisor import (
+    AdmissionRevocation,
     ApplicationDecision,
     AssignmentProgressUpdate,
     AssignmentResponse,
+    ProgressHistoryEntry,
 )
 from backend.app.services.management import manually_assign, update_limit
-from backend.app.services.read_models import student_assignments, supervisor_assignments
-from backend.app.services.supervisor import decide_application, update_assignment_progress
+from backend.app.services.read_models import (
+    assignment_progress_history,
+    student_assignments,
+    supervisor_assignments,
+)
+from backend.app.services.supervisor import (
+    decide_application,
+    revoke_admission,
+    update_assignment_progress,
+)
 
 router = APIRouter(tags=["workflows"])
 Supervisor = Annotated[User, Depends(require_roles(UserRole.NAUCHRUK))]
@@ -133,6 +143,34 @@ def my_notifications(
             .limit(limit)
         )
     ]
+
+
+@router.post(
+    "/assignments/{assignment_id}/revoke-admission",
+    response_model=AssignmentDetail,
+    responses={
+        403: {"description": "Insufficient role or another department"},
+        404: {"description": "Assignment not found"},
+        409: {"description": "Assignment is not an admitted active work"},
+    },
+)
+def revoke_work_admission(
+    assignment_id: int, data: AdmissionRevocation, db: DbSession, actor: Manager
+) -> AssignmentDetail:
+    """Revoke admission in the manager's scope with a mandatory audited explanation."""
+    return AssignmentDetail.model_validate(revoke_admission(db, actor, assignment_id, data.comment))
+
+
+@router.get(
+    "/assignments/{assignment_id}/progress-history",
+    response_model=list[ProgressHistoryEntry],
+    responses={404: {"description": "Assignment not found or outside the caller's scope"}},
+)
+def read_progress_history(
+    assignment_id: int, db: DbSession, actor: CurrentUser
+) -> list[ProgressHistoryEntry]:
+    """Read the saved timeline as owner, student, department head or administrator."""
+    return assignment_progress_history(db, actor, assignment_id)
 
 
 @router.get("/works/me", response_model=list[AssignmentDetail])

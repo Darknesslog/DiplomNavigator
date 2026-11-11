@@ -18,6 +18,7 @@ from backend.app.models import (
     Application,
     ApplicationStatusHistory,
     Assignment,
+    AssignmentProgressHistory,
     Base,
     Department,
     Faculty,
@@ -72,6 +73,7 @@ def sqlite_sessions(encoded_password: str, monkeypatch) -> Iterator[sessionmaker
         Application.__table__,
         ApplicationStatusHistory.__table__,
         Assignment.__table__,
+        AssignmentProgressHistory.__table__,
         Notification.__table__,
         TopicDeletionRequest.__table__,
     ]

@@ -6,7 +6,7 @@ from threading import Barrier, Event
 
 import pytest
 from fastapi import HTTPException
-from sqlalchemy import event, func, select, text
+from sqlalchemy import event, func, inspect, select, text
 
 from backend.app.models import (
     Application,
@@ -69,11 +69,14 @@ def test_parallel_applications_reserve_topic_once(client, bearer, sessions):
     )
     assert sorted(row.status_code for row in responses) == [201, 409]
     with sessions() as db:
-        assert db.scalar(
-            select(func.count(Application.id)).where(
-                Application.topic_id == 2, Application.status == ApplicationStatus.PENDING
+        assert (
+            db.scalar(
+                select(func.count(Application.id)).where(
+                    Application.topic_id == 2, Application.status == ApplicationStatus.PENDING
+                )
             )
-        ) == 1
+            == 1
+        )
 
 
 def test_parallel_duplicate_approval_has_single_effect(client, bearer, sessions):
@@ -142,6 +145,40 @@ def test_parallel_approvals_cannot_assign_student_twice(client, bearer, sessions
     assert sorted(row.status_code for row in responses) == [200, 409]
     with sessions() as db:
         assert db.scalar(select(func.count()).select_from(Assignment)) == 1
+        assert (
+            db.scalar(
+                select(func.count(Application.id)).where(
+                    Application.status == ApplicationStatus.PENDING
+                )
+            )
+            == 0
+        )
+
+
+def test_creation_and_approval_share_student_lock(client, bearer, sessions):
+    with sessions() as db:
+        db.get(Topic, 2).status = TopicStatus.PUBLISHED
+        db.commit()
+    responses = race(
+        client,
+        [
+            ("POST", "/topics/2/applications", bearer(3), {}),
+            ("PATCH", "/reservations/1/approve", bearer(4), {}),
+        ],
+    )
+    codes = sorted(response.status_code for response in responses)
+    assert codes in ([200, 201], [200, 409]), [response.text for response in responses]
+    with sessions() as db:
+        assert db.scalar(select(func.count(Assignment.id))) == 1
+        assert (
+            db.scalar(
+                select(func.count(Application.id)).where(
+                    Application.status == ApplicationStatus.PENDING
+                )
+            )
+            == 0
+        )
+        assert db.get(Topic, 2).status == TopicStatus.PUBLISHED
 
 
 def test_manual_assignment_and_approval_share_capacity_lock(client, bearer, sessions):
@@ -186,7 +223,9 @@ def test_conflict_helper_rolls_back_pending_side_effects(sessions):
 
 def test_migrated_database_has_expected_partial_indexes(sessions):
     with sessions() as db:
-        assert db.scalar(text("SELECT version_num FROM alembic_version")) == "c7e2f3a4b5c6"
+        assert db.scalar(text("SELECT version_num FROM alembic_version")) == "d8f3a4b5c6d7"
+        history_columns = inspect(db.get_bind()).get_columns("assignment_progress_history")
+        assert next(column for column in history_columns if column["name"] == "id")["identity"]
         definitions = dict(
             db.execute(
                 text("SELECT indexname, indexdef FROM pg_indexes WHERE schemaname = 'public'")

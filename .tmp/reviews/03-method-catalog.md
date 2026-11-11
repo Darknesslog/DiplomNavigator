@@ -2,7 +2,7 @@
 
 Сгенерировано из рабочей копии: AST определений и зарегистрированная OpenAPI. Унаследованные и автоматически созданные методы не перечислены. Docstring описывает намерение автора, а не доказывает поведение. Тесты, CLI и frontend не входят в область backend/app.
 
-Функций/методов: **126**; классов: **63**; HTTP-операций с учётом алиасов: **49**.
+Функций/методов: **132**; классов: **65**; HTTP-операций с учётом алиасов: **51**.
 
 Пересоздать: `uv run python -m backend.scripts.export_method_inventory --output .tmp/reviews/03-method-catalog.md`.
 
@@ -13,6 +13,8 @@
 | `GET /academic-periods` | `academic_periods_academic_periods_get` | 200, 422 |
 | `GET /applications/me` | `my_applications_applications_me_get` | 200, 422 |
 | `POST /assignments` | `create_manual_assignment_assignments_post` | 201, 422 |
+| `GET /assignments/{assignment_id}/progress-history` | `read_progress_history_assignments__assignment_id__progress_history_get` | 200, 404, 422 |
+| `POST /assignments/{assignment_id}/revoke-admission` | `revoke_work_admission_assignments__assignment_id__revoke_admission_post` | 200, 403, 404, 409, 422 |
 | `POST /auth/login` | `login_auth_login_post` | 200, 422 |
 | `GET /auth/me` | `me_auth_me_get` | 200 |
 | `GET /booking-requests` | `booking_requests_booking_requests_get` | 200, 422 |
@@ -112,7 +114,7 @@
 
 | Определение | Сигнатура | Назначение из docstring |
 |---|---|---|
-| [create](../../backend/app/api/topics.py#L46) | `create(data: TopicCreate, db: DbSession, actor: TopicManager) -> Topic` | Create a draft topic owned by the authenticated supervisor or department. |
+| [create](../../backend/app/api/topics.py#L46) | `create(data: TopicCreate, db: DbSession, actor: TopicManager) -> Topic` | Create an owned topic; department-head company topics are published immediately. |
 | [list_topics](../../backend/app/api/topics.py#L52) | `list_topics(db: DbSession, actor: CurrentUser, topic_status: Annotated[TopicStatus \| None, Query(alias='status')]=None, period_id: Annotated[int \| None, Query(gt=0)]=None, department_id: Annotated[int \| None, Query(gt=0)]=None, supervisor_id: Annotated[int \| None, Query(gt=0)]=None, offset: Annotated[int, Query(ge=0)]=0, limit: Annotated[int, Query(ge=1, le=100)]=50) -> list[TopicResponse]` | List only topics visible to the authenticated role. |
 | [apply_for_topic](../../backend/app/api/topics.py#L85) | `apply_for_topic(topic_id: int, data: ApplicationCreate, db: DbSession, actor: Student) -> StudentApplicationResponse` | Submit a pending topic application for the authenticated student. |
 | [update_status](../../backend/app/api/topics.py#L93) | `update_status(topic_id: int, data: TopicStatusUpdate, db: DbSession, actor: Moderator) -> TopicResponse` | Moderate a topic in the moderator's department. |
@@ -126,16 +128,18 @@
 
 | Определение | Сигнатура | Назначение из docstring |
 |---|---|---|
-| [supervisor_works](../../backend/app/api/workflows.py#L47) | `supervisor_works(db: DbSession, actor: Supervisor, work_status: Annotated[AssignmentStatus \| None, Query(alias='status')]=None, offset: Offset=0, limit: Limit=50) -> list[AssignmentDetail]` | Read assigned students, topics, stages and percentages owned by this supervisor. |
-| [approve_reservation](../../backend/app/api/workflows.py#L59) | `approve_reservation(application_id: int, data: ApplicationDecision, db: DbSession, actor: DecisionActor) -> StudentApplicationResponse` | Approve as owner or department head; capacity checks cannot be bypassed. |
-| [reject_reservation](../../backend/app/api/workflows.py#L72) | `reject_reservation(application_id: int, data: ApplicationDecision, db: DbSession, actor: DecisionActor) -> StudentApplicationResponse` | Release a pending reservation and persist an in-app notification for its student. |
-| [change_work_progress](../../backend/app/api/workflows.py#L85) | `change_work_progress(assignment_id: int, data: AssignmentProgressUpdate, db: DbSession, actor: Supervisor) -> AssignmentResponse` | Update an owned work; admission to defense forces the completion percentage to 100. |
-| [change_supervisor_limit](../../backend/app/api/workflows.py#L98) | `change_supervisor_limit(supervisor_id: int, data: SupervisorLimitUpdate, db: DbSession, actor: Manager) -> LimitUpdateResponse` | Change a scoped supervisor limit and return recalculated departmental workload. |
-| [create_manual_assignment](../../backend/app/api/workflows.py#L109) | `create_manual_assignment(data: ManualAssignmentCreate, db: DbSession, actor: Manager) -> AssignmentResponse` | Manually assign a free topic while preserving Application and Assignment separately. |
-| [my_notifications](../../backend/app/api/workflows.py#L119) | `my_notifications(db: DbSession, actor: CurrentUser, offset: Offset=0, limit: Limit=50) -> list[NotificationResponse]` | List only this recipient's persisted notifications. |
-| [my_works](../../backend/app/api/workflows.py#L139) | `my_works(db: DbSession, actor: Annotated[User, Depends(require_roles(UserRole.STUDENT))], offset: Offset=0, limit: Limit=50) -> list[AssignmentDetail]` | Read the current student's assignments and progress. |
-| [study_groups](../../backend/app/api/workflows.py#L150) | `study_groups(db: DbSession, actor: CurrentUser, offset: Offset=0, limit: Limit=50) -> list[StudyGroupResponse]` | Read group IDs used when an administrator creates a student. |
-| [academic_periods](../../backend/app/api/workflows.py#L166) | `academic_periods(db: DbSession, actor: CurrentUser, offset: Offset=0, limit: Limit=50) -> list[PeriodResponse]` | Read period IDs used when a supervisor proposes a topic. |
+| [supervisor_works](../../backend/app/api/workflows.py#L57) | `supervisor_works(db: DbSession, actor: Supervisor, work_status: Annotated[AssignmentStatus \| None, Query(alias='status')]=None, offset: Offset=0, limit: Limit=50) -> list[AssignmentDetail]` | Read assigned students, topics, stages and percentages owned by this supervisor. |
+| [approve_reservation](../../backend/app/api/workflows.py#L69) | `approve_reservation(application_id: int, data: ApplicationDecision, db: DbSession, actor: DecisionActor) -> StudentApplicationResponse` | Approve as owner or department head; capacity checks cannot be bypassed. |
+| [reject_reservation](../../backend/app/api/workflows.py#L82) | `reject_reservation(application_id: int, data: ApplicationDecision, db: DbSession, actor: DecisionActor) -> StudentApplicationResponse` | Release a pending reservation and persist an in-app notification for its student. |
+| [change_work_progress](../../backend/app/api/workflows.py#L95) | `change_work_progress(assignment_id: int, data: AssignmentProgressUpdate, db: DbSession, actor: Supervisor) -> AssignmentResponse` | Update an owned work; admission to defense forces the completion percentage to 100. |
+| [change_supervisor_limit](../../backend/app/api/workflows.py#L108) | `change_supervisor_limit(supervisor_id: int, data: SupervisorLimitUpdate, db: DbSession, actor: Manager) -> LimitUpdateResponse` | Change a scoped supervisor limit and return recalculated departmental workload. |
+| [create_manual_assignment](../../backend/app/api/workflows.py#L119) | `create_manual_assignment(data: ManualAssignmentCreate, db: DbSession, actor: Manager) -> AssignmentResponse` | Manually assign a free topic while preserving Application and Assignment separately. |
+| [my_notifications](../../backend/app/api/workflows.py#L129) | `my_notifications(db: DbSession, actor: CurrentUser, offset: Offset=0, limit: Limit=50) -> list[NotificationResponse]` | List only this recipient's persisted notifications. |
+| [revoke_work_admission](../../backend/app/api/workflows.py#L157) | `revoke_work_admission(assignment_id: int, data: AdmissionRevocation, db: DbSession, actor: Manager) -> AssignmentDetail` | Revoke admission in the manager's scope with a mandatory audited explanation. |
+| [read_progress_history](../../backend/app/api/workflows.py#L169) | `read_progress_history(assignment_id: int, db: DbSession, actor: CurrentUser) -> list[ProgressHistoryEntry]` | Read the saved timeline as owner, student, department head or administrator. |
+| [my_works](../../backend/app/api/workflows.py#L177) | `my_works(db: DbSession, actor: Annotated[User, Depends(require_roles(UserRole.STUDENT))], offset: Offset=0, limit: Limit=50) -> list[AssignmentDetail]` | Read the current student's assignments and progress. |
+| [study_groups](../../backend/app/api/workflows.py#L188) | `study_groups(db: DbSession, actor: CurrentUser, offset: Offset=0, limit: Limit=50) -> list[StudyGroupResponse]` | Read group IDs used when an administrator creates a student. |
+| [academic_periods](../../backend/app/api/workflows.py#L204) | `academic_periods(db: DbSession, actor: CurrentUser, offset: Offset=0, limit: Limit=50) -> list[PeriodResponse]` | Read period IDs used when a supervisor proposes a topic. |
 
 ## backend/app/db.py
 
@@ -235,7 +239,8 @@
 | [Application.__repr__](../../backend/app/models/workflow.py#L117) | `Application.__repr__(self) -> str` | — |
 | [ApplicationStatusHistory](../../backend/app/models/workflow.py#L121) | `class ApplicationStatusHistory` | История переходов заявки между статусами. |
 | [Assignment](../../backend/app/models/workflow.py#L173) | `class Assignment` | Закрепление темы за студентом — итоговый факт. |
-| [Assignment.__repr__](../../backend/app/models/workflow.py#L261) | `Assignment.__repr__(self) -> str` | — |
+| [Assignment.__repr__](../../backend/app/models/workflow.py#L265) | `Assignment.__repr__(self) -> str` | — |
+| [AssignmentProgressHistory](../../backend/app/models/workflow.py#L269) | `class AssignmentProgressHistory` | Append-only audit of progress changes and administrative admission revocation. |
 
 ## backend/app/schemas/accounts.py
 
@@ -265,13 +270,12 @@
 
 | Определение | Сигнатура | Назначение из docstring |
 |---|---|---|
-| [ProgressHistoryEntry](../../backend/app/schemas/dashboard.py#L13) | `class ProgressHistoryEntry` | Reserved contract for the progress timeline; no history is fabricated. |
-| [AssignmentDetail](../../backend/app/schemas/dashboard.py#L23) | `class AssignmentDetail` | Assignment card with an explicit nullable progress-history placeholder. |
-| [StudentDetail](../../backend/app/schemas/dashboard.py#L32) | `class StudentDetail` | Student card containing only assignments owned by the current supervisor. |
-| [SupervisorWorkload](../../backend/app/schemas/dashboard.py#L39) | `class SupervisorWorkload` | Current active assignments compared with the supervisor's configured limit. |
-| [SupervisorDashboard](../../backend/app/schemas/dashboard.py#L53) | `class SupervisorDashboard` | Counters and up to five recent cards for the authenticated supervisor. |
-| [TopicCounts](../../backend/app/schemas/dashboard.py#L63) | `class TopicCounts` | Topic counters retain the actual backend lifecycle names. |
-| [HeadDashboard](../../backend/app/schemas/dashboard.py#L72) | `class HeadDashboard` | Department-scoped counters for the head dashboard. |
+| [AssignmentDetail](../../backend/app/schemas/dashboard.py#L10) | `class AssignmentDetail` | Assignment card with events recorded since progress auditing was introduced. |
+| [StudentDetail](../../backend/app/schemas/dashboard.py#L19) | `class StudentDetail` | Student card containing only assignments owned by the current supervisor. |
+| [SupervisorWorkload](../../backend/app/schemas/dashboard.py#L26) | `class SupervisorWorkload` | Current active assignments compared with the supervisor's configured limit. |
+| [SupervisorDashboard](../../backend/app/schemas/dashboard.py#L40) | `class SupervisorDashboard` | Counters and up to five recent cards for the authenticated supervisor. |
+| [TopicCounts](../../backend/app/schemas/dashboard.py#L50) | `class TopicCounts` | Topic counters retain the actual backend lifecycle names. |
+| [HeadDashboard](../../backend/app/schemas/dashboard.py#L59) | `class HeadDashboard` | Department-scoped counters for the head dashboard. |
 
 ## backend/app/schemas/management.py
 
@@ -306,6 +310,8 @@
 | [AssignmentResponse.status_label](../../backend/app/schemas/supervisor.py#L55) | `AssignmentResponse.status_label(self) -> str` | Return the display label for the assignment status. |
 | [AssignmentResponse.current_stage_label](../../backend/app/schemas/supervisor.py#L61) | `AssignmentResponse.current_stage_label(self) -> str` | Return the display label for the current work stage. |
 | [AssignmentProgressUpdate](../../backend/app/schemas/supervisor.py#L66) | `class AssignmentProgressUpdate` | A validated progress update for an assignment. |
+| [AdmissionRevocation](../../backend/app/schemas/supervisor.py#L79) | `class AdmissionRevocation` | A department decision must explain why the prior admission was revoked. |
+| [ProgressHistoryEntry](../../backend/app/schemas/supervisor.py#L86) | `class ProgressHistoryEntry` | Persisted actor, time, before/after state and explanation of a progress change. |
 
 ## backend/app/schemas/topic.py
 
@@ -344,46 +350,48 @@
 
 | Определение | Сигнатура | Назначение из docstring |
 |---|---|---|
-| [application_deadline](../../backend/app/services/application.py#L26) | `application_deadline(created_at: datetime) -> datetime` | Return the configured decision deadline for an application. |
-| [expire_overdue_applications](../../backend/app/services/application.py#L32) | `expire_overdue_applications(db: Session, now: datetime \| None=None) -> int` | Expire pending applications and archive their topics. |
-| [refresh_expired_applications](../../backend/app/services/application.py#L72) | `refresh_expired_applications(db: Session) -> None` | Persist lazy expiration as a command, outside read-only projections. |
-| [create_application](../../backend/app/services/application.py#L78) | `create_application(db: Session, actor: User, topic_id: int, data: ApplicationCreate) -> Application` | Create one pending application for the authenticated student. |
-| [student_topic_query](../../backend/app/services/application.py#L162) | `student_topic_query(actor: User) -> Select[tuple[Topic]]` | Return published topics not blocked by this student's cooldown. |
+| [application_deadline](../../backend/app/services/application.py#L27) | `application_deadline(created_at: datetime) -> datetime` | Return the configured decision deadline for an application. |
+| [expire_overdue_applications](../../backend/app/services/application.py#L33) | `expire_overdue_applications(db: Session, now: datetime \| None=None) -> int` | Expire pending applications and archive their topics. |
+| [refresh_expired_applications](../../backend/app/services/application.py#L73) | `refresh_expired_applications(db: Session) -> None` | Persist lazy expiration as a command, outside read-only projections. |
+| [create_application](../../backend/app/services/application.py#L79) | `create_application(db: Session, actor: User, topic_id: int, data: ApplicationCreate) -> Application` | Create one pending application for the authenticated student. |
+| [student_topic_query](../../backend/app/services/application.py#L172) | `student_topic_query(actor: User) -> Select[tuple[Topic]]` | Return published topics not blocked by this student's cooldown. |
 
 ## backend/app/services/management.py
 
 | Определение | Сигнатура | Назначение из docstring |
 |---|---|---|
-| [update_limit](../../backend/app/services/management.py#L31) | `update_limit(db: Session, actor: User, teacher_id: int, maximum: int) -> LimitUpdateResponse` | Lock the same teacher row used by approvals and recalculate department workload. |
-| [manually_assign](../../backend/app/services/management.py#L66) | `manually_assign(db: Session, actor: User, data: ManualAssignmentCreate) -> Assignment` | Create an approved application and assignment together for a free topic. |
+| [update_limit](../../backend/app/services/management.py#L37) | `update_limit(db: Session, actor: User, teacher_id: int, maximum: int) -> LimitUpdateResponse` | Lock the same teacher row used by approvals and recalculate department workload. |
+| [manually_assign](../../backend/app/services/management.py#L72) | `manually_assign(db: Session, actor: User, data: ManualAssignmentCreate) -> Assignment` | Assign as a manager even in a closed period; capacity/scope still apply. |
 
 ## backend/app/services/read_models.py
 
 | Определение | Сигнатура | Назначение из docstring |
 |---|---|---|
-| [application_query](../../backend/app/services/read_models.py#L33) | `application_query() -> Select[tuple[Application]]` | Load only the relationships needed by the public application contract. |
-| [assignment_query](../../backend/app/services/read_models.py#L42) | `assignment_query() -> Select[tuple[Assignment]]` | Load students and topic cards together to avoid a query per row. |
-| [visible_applications](../../backend/app/services/read_models.py#L51) | `visible_applications(db: Session, actor: User, status_filter: ApplicationStatus \| None, offset: int, limit: int) -> list[StudentApplicationResponse]` | Students see their own requests; supervisors own topics; heads their department. |
-| [supervisor_assignments](../../backend/app/services/read_models.py#L84) | `supervisor_assignments(db: Session, actor: User, offset: int, limit: int, status_filter: AssignmentStatus \| None=None) -> list[AssignmentDetail]` | Read only assignments owned by the caller, including completed history. |
-| [student_assignments](../../backend/app/services/read_models.py#L106) | `student_assignments(db: Session, actor: User, offset: int, limit: int) -> list[AssignmentDetail]` | Read the current student's assignments and progress. |
-| [supervisor_assignment](../../backend/app/services/read_models.py#L126) | `supervisor_assignment(db: Session, actor: User, assignment_id: int) -> AssignmentDetail` | Use an ownership-filtered lookup; other supervisors' IDs are not disclosed. |
-| [supervisor_students](../../backend/app/services/read_models.py#L139) | `supervisor_students(db: Session, actor: User, offset: int, limit: int) -> list[StudentSummary]` | List students with a noncancelled assignment to this supervisor. |
-| [supervisor_student](../../backend/app/services/read_models.py#L162) | `supervisor_student(db: Session, actor: User, student_id: int) -> StudentDetail` | Never return assignments belonging to a different supervisor on a student card. |
-| [workload_query](../../backend/app/services/read_models.py#L187) | `workload_query() -> Select[tuple[Teacher, int]]` | Count active assignments once and retain supervisors with zero load. |
-| [workload_card](../../backend/app/services/read_models.py#L210) | `workload_card(teacher: Teacher, load: int) -> SupervisorWorkload` | Build workload cards without exposing internal account fields. |
-| [scoped_department](../../backend/app/services/read_models.py#L228) | `scoped_department(db: Session, actor: User, requested_id: int \| None) -> Department` | Heads are fixed to their department; admins must explicitly select one. |
-| [department_workload](../../backend/app/services/read_models.py#L240) | `department_workload(db: Session, actor: User, department_id: int \| None, offset: int, limit: int) -> list[SupervisorWorkload]` | Return a bounded workload table in the head's authorized department. |
-| [supervisor_dashboard](../../backend/app/services/read_models.py#L261) | `supervisor_dashboard(db: Session, actor: User) -> SupervisorDashboard` | Aggregate the supervisor's own persisted records without changing state. |
-| [head_dashboard](../../backend/app/services/read_models.py#L302) | `head_dashboard(db: Session, actor: User, department_id: int \| None) -> HeadDashboard` | Aggregate a single authorized department; counts are independent of pagination. |
+| [application_query](../../backend/app/services/read_models.py#L34) | `application_query() -> Select[tuple[Application]]` | Load only the relationships needed by the public application contract. |
+| [assignment_query](../../backend/app/services/read_models.py#L43) | `assignment_query() -> Select[tuple[Assignment]]` | Load students and topic cards together to avoid a query per row. |
+| [assignment_progress_history](../../backend/app/services/read_models.py#L53) | `assignment_progress_history(db: Session, actor: User, assignment_id: int) -> list[ProgressHistoryEntry]` | Read history only within the caller's assignment/department scope. |
+| [visible_applications](../../backend/app/services/read_models.py#L76) | `visible_applications(db: Session, actor: User, status_filter: ApplicationStatus \| None, offset: int, limit: int) -> list[StudentApplicationResponse]` | Students see their own requests; supervisors own topics; heads their department. |
+| [supervisor_assignments](../../backend/app/services/read_models.py#L109) | `supervisor_assignments(db: Session, actor: User, offset: int, limit: int, status_filter: AssignmentStatus \| None=None) -> list[AssignmentDetail]` | Read only assignments owned by the caller, including completed history. |
+| [student_assignments](../../backend/app/services/read_models.py#L131) | `student_assignments(db: Session, actor: User, offset: int, limit: int) -> list[AssignmentDetail]` | Read the current student's assignments and progress. |
+| [supervisor_assignment](../../backend/app/services/read_models.py#L151) | `supervisor_assignment(db: Session, actor: User, assignment_id: int) -> AssignmentDetail` | Use an ownership-filtered lookup; other supervisors' IDs are not disclosed. |
+| [supervisor_students](../../backend/app/services/read_models.py#L164) | `supervisor_students(db: Session, actor: User, offset: int, limit: int) -> list[StudentSummary]` | List students with a noncancelled assignment to this supervisor. |
+| [supervisor_student](../../backend/app/services/read_models.py#L187) | `supervisor_student(db: Session, actor: User, student_id: int) -> StudentDetail` | Never return assignments belonging to a different supervisor on a student card. |
+| [workload_query](../../backend/app/services/read_models.py#L212) | `workload_query() -> Select[tuple[Teacher, int]]` | Count active assignments once and retain supervisors with zero load. |
+| [workload_card](../../backend/app/services/read_models.py#L235) | `workload_card(teacher: Teacher, load: int) -> SupervisorWorkload` | Build workload cards without exposing internal account fields. |
+| [scoped_department](../../backend/app/services/read_models.py#L253) | `scoped_department(db: Session, actor: User, requested_id: int \| None) -> Department` | Heads are fixed to their department; admins must explicitly select one. |
+| [department_workload](../../backend/app/services/read_models.py#L265) | `department_workload(db: Session, actor: User, department_id: int \| None, offset: int, limit: int) -> list[SupervisorWorkload]` | Return a bounded workload table in the head's authorized department. |
+| [supervisor_dashboard](../../backend/app/services/read_models.py#L286) | `supervisor_dashboard(db: Session, actor: User) -> SupervisorDashboard` | Aggregate the supervisor's own persisted records without changing state. |
+| [head_dashboard](../../backend/app/services/read_models.py#L327) | `head_dashboard(db: Session, actor: User, department_id: int \| None) -> HeadDashboard` | Aggregate a single authorized department; counts are independent of pagination. |
 
 ## backend/app/services/supervisor.py
 
 | Определение | Сигнатура | Назначение из docstring |
 |---|---|---|
-| [require_supervisor_profile](../../backend/app/services/supervisor.py#L35) | `require_supervisor_profile(actor: User) -> Teacher` | Return the domain profile required by supervisor endpoints. |
-| [supervisor_applications](../../backend/app/services/supervisor.py#L42) | `supervisor_applications(db: Session, actor: User, status_filter: ApplicationStatus \| None=None, offset: int=0, limit: int=50) -> list[Application]` | List applications for topics owned by the current supervisor. |
-| [decide_application](../../backend/app/services/supervisor.py#L69) | `decide_application(db: Session, actor: User, application_id: int, decision: ApplicationDecision, *, approve: bool) -> Application` | Approve or reject one pending application atomically. |
-| [update_assignment_progress](../../backend/app/services/supervisor.py#L143) | `update_assignment_progress(db: Session, actor: User, assignment_id: int, data: AssignmentProgressUpdate) -> Assignment` | Update progress only for an assignment owned by the current supervisor. |
+| [require_supervisor_profile](../../backend/app/services/supervisor.py#L49) | `require_supervisor_profile(actor: User) -> Teacher` | Return the domain profile required by supervisor endpoints. |
+| [supervisor_applications](../../backend/app/services/supervisor.py#L56) | `supervisor_applications(db: Session, actor: User, status_filter: ApplicationStatus \| None=None, offset: int=0, limit: int=50) -> list[Application]` | List applications for topics owned by the current supervisor. |
+| [decide_application](../../backend/app/services/supervisor.py#L83) | `decide_application(db: Session, actor: User, application_id: int, decision: ApplicationDecision, *, approve: bool) -> Application` | Approve or reject one pending application atomically. |
+| [update_assignment_progress](../../backend/app/services/supervisor.py#L176) | `update_assignment_progress(db: Session, actor: User, assignment_id: int, data: AssignmentProgressUpdate) -> Assignment` | Update progress only for an assignment owned by the current supervisor. |
+| [revoke_admission](../../backend/app/services/supervisor.py#L243) | `revoke_admission(db: Session, actor: User, assignment_id: int, comment: str) -> Assignment` | Allow a scoped manager to return an admitted active work to review, with audit. |
 
 ## backend/app/services/topic.py
 
@@ -405,6 +413,8 @@
 
 | Определение | Сигнатура | Назначение из docstring |
 |---|---|---|
-| [check_workflow_scope](../../backend/app/services/workflow.py#L11) | `check_workflow_scope(actor: User, topic: Topic) -> None` | Authorize a supervisor's own topic or a head's department. |
-| [lock_assignment_capacity](../../backend/app/services/workflow.py#L24) | `lock_assignment_capacity(db: Session, topic: Topic, student_id: int) -> Teacher` | Serialize capacity and student checks with the topic already locked. |
-| [commit_workflow](../../backend/app/services/workflow.py#L84) | `commit_workflow(db: Session) -> None` | Translate uniqueness races into an API conflict and roll back all changes. |
+| [check_workflow_scope](../../backend/app/services/workflow.py#L24) | `check_workflow_scope(actor: User, topic: Topic) -> None` | Authorize a supervisor's own topic or a head's department. |
+| [lock_student](../../backend/app/services/workflow.py#L37) | `lock_student(db: Session, student_id: int) -> Student` | Lock the student before topics/applications to serialize their commands. |
+| [withdraw_other_applications](../../backend/app/services/workflow.py#L50) | `withdraw_other_applications(db: Session, student_id: int, actor_id: int, now: datetime, *, keep_application_id: int \| None=None) -> None` | Release other reservations under the student's lock; caller commits atomically. |
+| [lock_assignment_capacity](../../backend/app/services/workflow.py#L85) | `lock_assignment_capacity(db: Session, topic: Topic, student_id: int) -> Teacher` | Check capacity with student and topic already locked by the caller. |
+| [commit_workflow](../../backend/app/services/workflow.py#L143) | `commit_workflow(db: Session) -> None` | Translate uniqueness races into an API conflict and roll back all changes. |

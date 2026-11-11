@@ -45,8 +45,8 @@ with that setting. Always run the cleanup command, including after failed tests.
   student, concurrent limit changes, rollback, partial indexes, roles, department boundaries,
   partner topics, progress, expiration and endpoint aliases.
 - Passing these cases verifies those interleavings and invariants; it is not a proof that
-  all possible races are excluded. Closed-period acceptance and progress regression tests
-  explicitly characterize current policy gaps rather than endorsing those policies.
+  all possible races are excluded. Closed-period rejection, admission transition guards,
+  audited administrative revocation and release of other reservations enforce agreed policy.
 
 The previous local audit log is preserved in
 [the review history](../../../.tmp/reviews/00-postgresql-audit-history.md).

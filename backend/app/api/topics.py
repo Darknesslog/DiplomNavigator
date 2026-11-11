@@ -44,7 +44,7 @@ DeletionViewer = Annotated[
 
 @router.post("", response_model=TopicResponse, status_code=status.HTTP_201_CREATED)
 def create(data: TopicCreate, db: DbSession, actor: TopicManager) -> Topic:
-    """Create a draft topic owned by the authenticated supervisor or department."""
+    """Create an owned topic; department-head company topics are published immediately."""
     return create_topic(db, data, actor)
 
 

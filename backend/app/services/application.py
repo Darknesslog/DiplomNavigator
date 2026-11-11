@@ -8,19 +8,20 @@ from sqlalchemy.orm import Session
 
 from backend.app import config
 from backend.app.models import (
+    AcademicPeriod,
     Application,
     ApplicationStatus,
     ApplicationStatusHistory,
     Assignment,
     AssignmentStatus,
-    Student,
+    PeriodStatus,
     Topic,
     TopicArchiveReason,
     TopicStatus,
     User,
 )
 from backend.app.schemas.application import ApplicationCreate
-from backend.app.services.workflow import commit_workflow
+from backend.app.services.workflow import commit_workflow, lock_student
 
 
 def application_deadline(created_at: datetime) -> datetime:
@@ -83,7 +84,7 @@ def create_application(
         raise HTTPException(status_code=409, detail="Student profile is required")
     if expire_overdue_applications(db):
         db.commit()
-    student = actor.student
+    student = lock_student(db, actor.student.id)
     topic = db.scalar(select(Topic).where(Topic.id == topic_id).with_for_update())
     if topic is None:
         raise HTTPException(status_code=404, detail="Topic not found")
@@ -92,7 +93,16 @@ def create_application(
     now = datetime.now(UTC)
     if topic.department_id != student.department_id:
         raise HTTPException(status_code=403, detail="Topic is outside student's department")
-    db.scalar(select(Student).where(Student.id == student.id).with_for_update())
+    period = db.scalar(
+        select(AcademicPeriod)
+        .where(AcademicPeriod.id == topic.period_id)
+        .with_for_update(read=True)
+        .execution_options(populate_existing=True)
+    )
+    if period is None:
+        raise HTTPException(status_code=409, detail="Academic period not found")
+    if period.status == PeriodStatus.CLOSED:
+        raise HTTPException(status_code=403, detail="Период подачи заявок закрыт")
     if (
         db.scalar(
             select(Assignment.id).where(

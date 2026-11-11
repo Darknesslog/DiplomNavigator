@@ -1,11 +1,24 @@
 """Shared transaction rules for supervisor decisions and department overrides."""
 
+from datetime import datetime
+
 from fastapi import HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from backend.app.models import Assignment, AssignmentStatus, Student, Teacher, Topic, User, UserRole
+from backend.app.models import (
+    Application,
+    ApplicationStatus,
+    ApplicationStatusHistory,
+    Assignment,
+    AssignmentStatus,
+    Student,
+    Teacher,
+    Topic,
+    User,
+    UserRole,
+)
 
 
 def check_workflow_scope(actor: User, topic: Topic) -> None:
@@ -21,8 +34,57 @@ def check_workflow_scope(actor: User, topic: Topic) -> None:
     raise HTTPException(status_code=403, detail="Topic is outside your scope")
 
 
+def lock_student(db: Session, student_id: int) -> Student:
+    """Lock the student before topics/applications to serialize their commands."""
+    student = db.scalar(
+        select(Student)
+        .where(Student.id == student_id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
+    if student is None:
+        raise HTTPException(status_code=404, detail="Student not found")
+    return student
+
+
+def withdraw_other_applications(
+    db: Session,
+    student_id: int,
+    actor_id: int,
+    now: datetime,
+    *,
+    keep_application_id: int | None = None,
+) -> None:
+    """Release other reservations under the student's lock; caller commits atomically."""
+    statement = select(Application).where(
+        Application.student_id == student_id, Application.status == ApplicationStatus.PENDING
+    )
+    if keep_application_id is not None:
+        statement = statement.where(Application.id != keep_application_id)
+    for application in db.scalars(
+        statement.order_by(Application.id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    ):
+        application.status = ApplicationStatus.WITHDRAWN
+        application.cooldown_until = None
+        application.decided_at = now
+        application.decided_by_user_id = actor_id
+        application.decision_comment = "Автоматический отзыв после закрепления другой темы"
+        application.history.append(
+            ApplicationStatusHistory(
+                from_status=ApplicationStatus.PENDING,
+                to_status=ApplicationStatus.WITHDRAWN,
+                changed_by_user_id=actor_id,
+                created_at=now,
+                comment=application.decision_comment,
+            )
+        )
+
+
 def lock_assignment_capacity(db: Session, topic: Topic, student_id: int) -> Teacher:
-    """Serialize capacity and student checks with the topic already locked."""
+    """Check capacity with student and topic already locked by the caller."""
+    student = lock_student(db, student_id)
     teacher = db.scalar(
         select(Teacher)
         .where(Teacher.id == topic.supervisor_id)
@@ -41,9 +103,6 @@ def lock_assignment_capacity(db: Session, topic: Topic, student_id: int) -> Teac
         )
     ):
         raise HTTPException(status_code=409, detail="Supervisor is unavailable")
-    student = db.scalar(select(Student).where(Student.id == student_id).with_for_update())
-    if student is None:
-        raise HTTPException(status_code=404, detail="Student not found")
     if not student.user.is_active or student.user.role != UserRole.STUDENT:
         raise HTTPException(status_code=409, detail="Student is unavailable")
     if student.department_id is None or student.department_id != topic.department_id:

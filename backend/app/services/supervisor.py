@@ -12,6 +12,7 @@ from backend.app.models import (
     ApplicationStatus,
     ApplicationStatusHistory,
     Assignment,
+    AssignmentProgressHistory,
     AssignmentStage,
     AssignmentStatus,
     Notification,
@@ -21,15 +22,28 @@ from backend.app.models import (
     TopicArchiveReason,
     TopicStatus,
     User,
+    UserRole,
 )
 from backend.app.models.enums import NotificationKind
 from backend.app.schemas.supervisor import ApplicationDecision, AssignmentProgressUpdate
+from backend.app.services.accounts import check_department_scope
 from backend.app.services.application import expire_overdue_applications
 from backend.app.services.workflow import (
     check_workflow_scope,
     commit_workflow,
     lock_assignment_capacity,
+    lock_student,
+    withdraw_other_applications,
 )
+
+PROGRESS_TRANSITIONS: dict[AssignmentStage, frozenset[AssignmentStage]] = {
+    AssignmentStage.IN_PROGRESS: frozenset(AssignmentStage),
+    AssignmentStage.UNDER_REVIEW: frozenset(AssignmentStage),
+    AssignmentStage.ADMITTED_TO_DEFENSE: frozenset(
+        (AssignmentStage.ADMITTED_TO_DEFENSE, AssignmentStage.DEFENDED)
+    ),
+    AssignmentStage.DEFENDED: frozenset(),
+}
 
 
 def require_supervisor_profile(actor: User) -> Teacher:
@@ -77,8 +91,15 @@ def decide_application(
     """Approve or reject one pending application atomically."""
     if expire_overdue_applications(db):
         db.commit()
+    student_id = db.scalar(select(Application.student_id).where(Application.id == application_id))
+    if student_id is None:
+        raise HTTPException(status_code=404, detail="Application not found")
+    lock_student(db, student_id)
     application = db.scalar(
-        select(Application).where(Application.id == application_id).with_for_update()
+        select(Application)
+        .where(Application.id == application_id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
     )
     if application is None:
         raise HTTPException(status_code=404, detail="Application not found")
@@ -104,7 +125,19 @@ def decide_application(
             current_stage=AssignmentStage.IN_PROGRESS,
         )
         db.add(assignment)
+        assignment.progress_history.append(
+            AssignmentProgressHistory(
+                changed_by_user_id=actor.id,
+                changed_at=now,
+                current_stage=AssignmentStage.IN_PROGRESS,
+                progress_percent=0,
+                comment=decision.comment,
+            )
+        )
         application.status = ApplicationStatus.APPROVED
+        withdraw_other_applications(
+            db, application.student_id, actor.id, now, keep_application_id=application.id
+        )
     else:
         application.status = ApplicationStatus.REJECTED
         application.cooldown_until = now + timedelta(
@@ -146,7 +179,10 @@ def update_assignment_progress(
     """Update progress only for an assignment owned by the current supervisor."""
     teacher = require_supervisor_profile(actor)
     assignment = db.scalar(
-        select(Assignment).where(Assignment.id == assignment_id).with_for_update()
+        select(Assignment)
+        .where(Assignment.id == assignment_id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
     )
     if assignment is None:
         raise HTTPException(status_code=404, detail="Assignment not found")
@@ -154,13 +190,28 @@ def update_assignment_progress(
         raise HTTPException(status_code=403, detail="Assignment belongs to another supervisor")
     if assignment.status != AssignmentStatus.ACTIVE:
         raise HTTPException(status_code=409, detail="Only active assignments can be updated")
+    if data.current_stage not in PROGRESS_TRANSITIONS[assignment.current_stage]:
+        raise HTTPException(status_code=409, detail="Admission cannot be undone through progress")
     if data.current_stage == AssignmentStage.DEFENDED and data.progress_percent != 100:
         raise HTTPException(status_code=422, detail="Defended work must have 100 percent progress")
     now = datetime.now(UTC)
+    previous_stage = assignment.current_stage
+    previous_percent = assignment.progress_percent
     assignment.progress_percent = (
         100 if data.current_stage == AssignmentStage.ADMITTED_TO_DEFENSE else data.progress_percent
     )
     assignment.current_stage = data.current_stage
+    assignment.progress_history.append(
+        AssignmentProgressHistory(
+            changed_by_user_id=actor.id,
+            changed_at=now,
+            from_stage=previous_stage,
+            from_progress_percent=previous_percent,
+            current_stage=assignment.current_stage,
+            progress_percent=assignment.progress_percent,
+            comment=data.comment,
+        )
+    )
     if data.current_stage == AssignmentStage.DEFENDED:
         assignment.status = AssignmentStatus.COMPLETED
         assignment.topic.status = TopicStatus.ARCHIVED
@@ -184,6 +235,58 @@ def update_assignment_progress(
             is_read=False,
         )
     )
-    db.commit()
+    commit_workflow(db)
+    db.refresh(assignment)
+    return assignment
+
+
+def revoke_admission(db: Session, actor: User, assignment_id: int, comment: str) -> Assignment:
+    """Allow a scoped manager to return an admitted active work to review, with audit."""
+    if actor.role not in (UserRole.ADMIN, UserRole.ZAVKAF):
+        raise HTTPException(status_code=403, detail="Only department heads may revoke admission")
+    if not comment.strip():
+        raise HTTPException(status_code=422, detail="Revocation requires a comment")
+    assignment = db.scalar(
+        select(Assignment)
+        .where(Assignment.id == assignment_id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
+    if assignment is None:
+        raise HTTPException(status_code=404, detail="Assignment not found")
+    check_department_scope(actor, assignment.topic.department_id)
+    if (
+        assignment.status != AssignmentStatus.ACTIVE
+        or assignment.current_stage != AssignmentStage.ADMITTED_TO_DEFENSE
+    ):
+        raise HTTPException(status_code=409, detail="Only an admitted active work can be revoked")
+    now = datetime.now(UTC)
+    assignment.progress_history.append(
+        AssignmentProgressHistory(
+            changed_by_user_id=actor.id,
+            changed_at=now,
+            from_stage=assignment.current_stage,
+            from_progress_percent=assignment.progress_percent,
+            current_stage=AssignmentStage.UNDER_REVIEW,
+            progress_percent=assignment.progress_percent,
+            comment=comment.strip(),
+        )
+    )
+    assignment.current_stage = AssignmentStage.UNDER_REVIEW
+    db.add(
+        Notification(
+            user_id=assignment.student.user_id,
+            kind=NotificationKind.ASSIGNMENT_PROGRESS_UPDATED,
+            title="Допуск к защите отозван",
+            body=comment.strip(),
+            created_at=now,
+            payload={
+                "assignment_id": assignment.id,
+                "current_stage": assignment.current_stage.value,
+            },
+            is_read=False,
+        )
+    )
+    commit_workflow(db)
     db.refresh(assignment)
     return assignment

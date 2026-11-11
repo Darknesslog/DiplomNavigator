@@ -1,4 +1,4 @@
-"""Fifty independent API/invariant cases, including observed policy limitations."""
+"""API/invariant cases covering role scope, progress, expiration and reservations."""
 
 from datetime import UTC, datetime, timedelta
 
@@ -308,7 +308,7 @@ def test_completed_topic_stays_unavailable_to_other_students(client, bearer, ses
     assert client.get("/topics/1", headers=bearer(5)).status_code == 404
 
 
-def test_other_pending_application_survives_but_cannot_be_approved(client, bearer, sessions):
+def test_other_pending_application_is_withdrawn_on_approval(client, bearer, sessions):
     free_topic(sessions)
     response = client.post("/topics/2/applications", json={}, headers=bearer(3))
     assert response.status_code == 201
@@ -317,7 +317,11 @@ def test_other_pending_application_survives_but_cannot_be_approved(client, beare
     response = client.patch(f"/reservations/{second_id}/approve", json={}, headers=bearer(2))
     assert response.status_code == 409
     with sessions() as db:
-        assert db.get(Application, second_id).status == ApplicationStatus.PENDING
+        other = db.get(Application, second_id)
+        assert other.status == ApplicationStatus.WITHDRAWN
+        assert other.cooldown_until is None
+        assert other.history[-1].to_status == ApplicationStatus.WITHDRAWN
+        assert db.get(Topic, 2).status == TopicStatus.PUBLISHED
 
 
 def test_notification_recipient_scope_and_pagination(client, bearer):
@@ -330,31 +334,29 @@ def test_notification_recipient_scope_and_pagination(client, bearer):
     assert client.get("/notifications").status_code == 401
 
 
-def test_current_policy_allows_regression_after_admission(client, bearer):
-    """Characterization: no monotonic-stage rule exists in the current service."""
+def test_progress_cannot_regress_after_admission(client, bearer):
+    """Only the separate administrative revocation may undo admission."""
     approve(client, bearer)
-    for stage, percent in [
-        (AssignmentStage.ADMITTED_TO_DEFENSE, 50),
-        (AssignmentStage.IN_PROGRESS, 10),
+    for stage, percent, expected in [
+        (AssignmentStage.ADMITTED_TO_DEFENSE, 50, 200),
+        (AssignmentStage.IN_PROGRESS, 10, 409),
     ]:
         response = client.patch(
             "/works/1/progress",
             headers=bearer(4),
             json={"current_stage": stage, "progress_percent": percent},
         )
-        assert response.status_code == 200, response.text
-    assert response.json()["progress_percent"] == 10
-    assert response.json()["current_stage"] == AssignmentStage.IN_PROGRESS
+        assert response.status_code == expected, response.text
 
 
-def test_current_policy_does_not_enforce_closed_period(client, bearer, sessions):
-    """Characterization: published topics accept applications even in a closed period."""
+def test_closed_period_forbids_student_application(client, bearer, sessions):
+    """A published topic does not override a closed academic period."""
     free_topic(sessions)
     with sessions() as db:
         db.get(AcademicPeriod, 1).status = PeriodStatus.CLOSED
         db.commit()
     response = client.post("/topics/2/applications", json={}, headers=bearer(3))
-    assert response.status_code == 201, response.text
+    assert response.status_code == 403, response.text
 
 
 @pytest.mark.parametrize("alias", ["decision", "progress"])

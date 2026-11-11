@@ -12,6 +12,7 @@ from backend.app.models import (
     ApplicationStatus,
     ApplicationStatusHistory,
     Assignment,
+    AssignmentProgressHistory,
     AssignmentStage,
     AssignmentStatus,
     Notification,
@@ -25,7 +26,12 @@ from backend.app.schemas.management import LimitUpdateResponse, ManualAssignment
 from backend.app.services.accounts import check_department_scope
 from backend.app.services.application import expire_overdue_applications
 from backend.app.services.read_models import workload_card, workload_query
-from backend.app.services.workflow import commit_workflow, lock_assignment_capacity
+from backend.app.services.workflow import (
+    commit_workflow,
+    lock_assignment_capacity,
+    lock_student,
+    withdraw_other_applications,
+)
 
 
 def update_limit(db: Session, actor: User, teacher_id: int, maximum: int) -> LimitUpdateResponse:
@@ -64,9 +70,10 @@ def update_limit(db: Session, actor: User, teacher_id: int, maximum: int) -> Lim
 
 
 def manually_assign(db: Session, actor: User, data: ManualAssignmentCreate) -> Assignment:
-    """Create an approved application and assignment together for a free topic."""
+    """Assign as a manager even in a closed period; capacity/scope still apply."""
     if expire_overdue_applications(db):
         db.commit()
+    lock_student(db, data.student_id)
     topic = db.scalar(select(Topic).where(Topic.id == data.topic_id).with_for_update())
     if topic is None:
         raise HTTPException(status_code=404, detail="Topic not found")
@@ -113,6 +120,16 @@ def manually_assign(db: Session, actor: User, data: ManualAssignmentCreate) -> A
         assigned_at=now,
     )
     db.add_all([application, assignment])
+    assignment.progress_history.append(
+        AssignmentProgressHistory(
+            changed_by_user_id=actor.id,
+            changed_at=now,
+            current_stage=AssignmentStage.IN_PROGRESS,
+            progress_percent=0,
+            comment=data.comment,
+        )
+    )
+    withdraw_other_applications(db, data.student_id, actor.id, now)
     # Flush also assigns the application's identity for the notification.
     try:
         db.flush()

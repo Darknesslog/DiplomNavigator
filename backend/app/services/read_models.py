@@ -26,6 +26,7 @@ from backend.app.schemas.dashboard import (
     TopicCounts,
 )
 from backend.app.schemas.presentation import StudentSummary
+from backend.app.schemas.supervisor import ProgressHistoryEntry
 from backend.app.services.accounts import check_department_scope, require_department
 from backend.app.services.supervisor import require_supervisor_profile
 
@@ -45,7 +46,31 @@ def assignment_query() -> Select[tuple[Assignment]]:
         selectinload(Assignment.student).selectinload(Student.user),
         selectinload(Assignment.student).selectinload(Student.group),
         selectinload(Assignment.topic),
+        selectinload(Assignment.progress_history),
     )
+
+
+def assignment_progress_history(
+    db: Session, actor: User, assignment_id: int
+) -> list[ProgressHistoryEntry]:
+    """Read history only within the caller's assignment/department scope."""
+    statement = select(Assignment).join(Assignment.topic).where(Assignment.id == assignment_id)
+    if actor.role == UserRole.STUDENT:
+        if actor.student is None:
+            raise HTTPException(status_code=409, detail="Student profile is required")
+        statement = statement.where(Assignment.student_id == actor.student.id)
+    elif actor.role == UserRole.NAUCHRUK:
+        teacher = require_supervisor_profile(actor)
+        statement = statement.where(Assignment.supervisor_id == teacher.id)
+    elif actor.role == UserRole.ZAVKAF:
+        teacher = require_supervisor_profile(actor)
+        statement = statement.where(Topic.department_id == teacher.department_id)
+    elif actor.role != UserRole.ADMIN:
+        raise HTTPException(status_code=403, detail="Insufficient role")
+    assignment = db.scalar(statement.options(selectinload(Assignment.progress_history)))
+    if assignment is None:
+        raise HTTPException(status_code=404, detail="Assignment not found")
+    return [ProgressHistoryEntry.model_validate(event) for event in assignment.progress_history]
 
 
 def visible_applications(
