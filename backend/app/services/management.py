@@ -12,8 +12,6 @@ from backend.app.models import (
     ApplicationStatus,
     ApplicationStatusHistory,
     Assignment,
-    AssignmentStage,
-    AssignmentStatus,
     Notification,
     Teacher,
     Topic,
@@ -24,8 +22,14 @@ from backend.app.models.enums import NotificationKind
 from backend.app.schemas.management import LimitUpdateResponse, ManualAssignmentCreate
 from backend.app.services.accounts import check_department_scope
 from backend.app.services.application import expire_overdue_applications
+from backend.app.services.assignment_records import new_assignment
 from backend.app.services.read_models import workload_card, workload_query
-from backend.app.services.workflow import commit_workflow, lock_assignment_capacity
+from backend.app.services.workflow import (
+    commit_workflow,
+    lock_assignment_capacity,
+    lock_student,
+    withdraw_other_applications,
+)
 
 
 def update_limit(db: Session, actor: User, teacher_id: int, maximum: int) -> LimitUpdateResponse:
@@ -64,9 +68,10 @@ def update_limit(db: Session, actor: User, teacher_id: int, maximum: int) -> Lim
 
 
 def manually_assign(db: Session, actor: User, data: ManualAssignmentCreate) -> Assignment:
-    """Create an approved application and assignment together for a free topic."""
+    """Assign as a manager even in a closed period; capacity/scope still apply."""
     if expire_overdue_applications(db):
         db.commit()
+    lock_student(db, data.student_id)
     topic = db.scalar(select(Topic).where(Topic.id == data.topic_id).with_for_update())
     if topic is None:
         raise HTTPException(status_code=404, detail="Topic not found")
@@ -103,16 +108,16 @@ def manually_assign(db: Session, actor: User, data: ManualAssignmentCreate) -> A
             created_at=now,
         )
     )
-    assignment = Assignment(
-        student_id=data.student_id,
-        topic_id=topic.id,
-        supervisor_id=teacher.id,
-        status=AssignmentStatus.ACTIVE,
-        current_stage=AssignmentStage.IN_PROGRESS,
-        progress_percent=0,
-        assigned_at=now,
+    assignment = new_assignment(
+        data.student_id,
+        topic.id,
+        teacher.id,
+        actor.id,
+        now,
+        data.comment,
     )
     db.add_all([application, assignment])
+    withdraw_other_applications(db, data.student_id, actor.id, now)
     # Flush also assigns the application's identity for the notification.
     try:
         db.flush()

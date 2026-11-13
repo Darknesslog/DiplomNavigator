@@ -26,15 +26,9 @@ from backend.app.schemas.dashboard import (
     TopicCounts,
 )
 from backend.app.schemas.presentation import StudentSummary
+from backend.app.schemas.supervisor import ProgressHistoryEntry
 from backend.app.services.accounts import check_department_scope, require_department
-from backend.app.services.application import expire_overdue_applications
-from backend.app.services.supervisor import require_supervisor_profile
-
-
-def refresh_expired_applications(db: Session) -> None:
-    """Apply the existing lazy timeout before rendering dashboard counters."""
-    if expire_overdue_applications(db):
-        db.commit()
+from backend.app.services.profiles import require_supervisor_profile
 
 
 def application_query() -> Select[tuple[Application]]:
@@ -52,7 +46,31 @@ def assignment_query() -> Select[tuple[Assignment]]:
         selectinload(Assignment.student).selectinload(Student.user),
         selectinload(Assignment.student).selectinload(Student.group),
         selectinload(Assignment.topic),
+        selectinload(Assignment.progress_history),
     )
+
+
+def assignment_progress_history(
+    db: Session, actor: User, assignment_id: int
+) -> list[ProgressHistoryEntry]:
+    """Read history only within the caller's assignment/department scope."""
+    statement = select(Assignment).join(Assignment.topic).where(Assignment.id == assignment_id)
+    if actor.role == UserRole.STUDENT:
+        if actor.student is None:
+            raise HTTPException(status_code=409, detail="Student profile is required")
+        statement = statement.where(Assignment.student_id == actor.student.id)
+    elif actor.role == UserRole.NAUCHRUK:
+        teacher = require_supervisor_profile(actor)
+        statement = statement.where(Assignment.supervisor_id == teacher.id)
+    elif actor.role == UserRole.ZAVKAF:
+        teacher = require_supervisor_profile(actor)
+        statement = statement.where(Topic.department_id == teacher.department_id)
+    elif actor.role != UserRole.ADMIN:
+        raise HTTPException(status_code=403, detail="Insufficient role")
+    assignment = db.scalar(statement.options(selectinload(Assignment.progress_history)))
+    if assignment is None:
+        raise HTTPException(status_code=404, detail="Assignment not found")
+    return [ProgressHistoryEntry.model_validate(event) for event in assignment.progress_history]
 
 
 def visible_applications(
@@ -63,7 +81,6 @@ def visible_applications(
     limit: int,
 ) -> list[StudentApplicationResponse]:
     """Students see their own requests; supervisors own topics; heads their department."""
-    refresh_expired_applications(db)
     statement = application_query().join(Application.topic)
     if actor.role == UserRole.STUDENT:
         if actor.student is None:
@@ -267,8 +284,7 @@ def department_workload(
 
 
 def supervisor_dashboard(db: Session, actor: User) -> SupervisorDashboard:
-    """Aggregate the supervisor's own records after processing overdue requests."""
-    refresh_expired_applications(db)
+    """Aggregate the supervisor's own persisted records without changing state."""
     teacher = require_supervisor_profile(actor)
     load = (
         db.scalar(
@@ -311,7 +327,6 @@ def supervisor_dashboard(db: Session, actor: User) -> SupervisorDashboard:
 def head_dashboard(db: Session, actor: User, department_id: int | None) -> HeadDashboard:
     """Aggregate a single authorized department; counts are independent of pagination."""
     department = scoped_department(db, actor, department_id)
-    refresh_expired_applications(db)
     workload = [
         workload_card(teacher, load)
         for teacher, load in db.execute(

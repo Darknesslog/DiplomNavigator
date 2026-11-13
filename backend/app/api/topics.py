@@ -16,16 +16,17 @@ from backend.app.schemas.topic import TopicCreate, TopicResponse, TopicStatusUpd
 from backend.app.services.application import (
     create_application,
     expire_overdue_applications,
-    student_topic_query,
 )
 from backend.app.services.topic import (
     create_topic,
+    get_topic,
+    list_visible_topics,
+    moderate_topic,
+)
+from backend.app.services.topic_deletion import (
     create_topic_deletion_request,
     decide_topic_deletion_request,
-    get_topic,
-    moderate_topic,
     topic_deletion_requests,
-    topic_query,
 )
 
 router = APIRouter(prefix="/topics", tags=["topics"])
@@ -34,9 +35,7 @@ TopicManager = Annotated[
 ]
 Student = Annotated[User, Depends(require_roles(UserRole.STUDENT))]
 Moderator = Annotated[User, Depends(require_roles(UserRole.ADMIN, UserRole.ZAVKAF))]
-DeletionReviewer = Annotated[
-    User, Depends(require_roles(UserRole.ADMIN, UserRole.ZAVKAF))
-]
+DeletionReviewer = Annotated[User, Depends(require_roles(UserRole.ADMIN, UserRole.ZAVKAF))]
 DeletionViewer = Annotated[
     User, Depends(require_roles(UserRole.ADMIN, UserRole.ZAVKAF, UserRole.NAUCHRUK))
 ]
@@ -44,7 +43,7 @@ DeletionViewer = Annotated[
 
 @router.post("", response_model=TopicResponse, status_code=status.HTTP_201_CREATED)
 def create(data: TopicCreate, db: DbSession, actor: TopicManager) -> Topic:
-    """Create a draft topic owned by the authenticated supervisor or department."""
+    """Create an owned topic; department-head company topics are published immediately."""
     return create_topic(db, data, actor)
 
 
@@ -62,19 +61,9 @@ def list_topics(
     """List only topics visible to the authenticated role."""
     if expire_overdue_applications(db):
         db.commit()
-    if actor.role == UserRole.STUDENT:
-        statement = student_topic_query(actor)
-    else:
-        statement = topic_query(actor, status_filter=topic_status)
-    if topic_status is not None:
-        statement = statement.where(Topic.status == topic_status)
-    if period_id is not None:
-        statement = statement.where(Topic.period_id == period_id)
-    if department_id is not None:
-        statement = statement.where(Topic.department_id == department_id)
-    if supervisor_id is not None:
-        statement = statement.where(Topic.supervisor_id == supervisor_id)
-    return list(db.scalars(statement.order_by(Topic.id).offset(offset).limit(limit)))
+    return list_visible_topics(
+        db, actor, topic_status, period_id, department_id, supervisor_id, offset, limit
+    )
 
 
 @router.post(

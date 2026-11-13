@@ -4,13 +4,13 @@ from datetime import UTC, datetime, timedelta
 
 import jwt
 import pytest
-from conftest import PASSWORD, TEST_SECRET
 from pwdlib.hashers.bcrypt import BcryptHasher
 from sqlalchemy import func, select
 
 from backend.app import config
 from backend.app.models import Student, User
 from backend.app.security import ALGORITHM, create_access_token
+from backend.tests.constants import PASSWORD, TEST_SECRET
 
 
 def login(client, user_id=3, password=PASSWORD):

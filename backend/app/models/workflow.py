@@ -257,6 +257,48 @@ class Assignment(IdMixin, TimestampMixin, Base):
     student: Mapped[Student] = relationship(back_populates="assignments")
     topic: Mapped[Topic] = relationship(back_populates="assignments")
     supervisor: Mapped[Teacher] = relationship(back_populates="assignments")
+    progress_history: Mapped[list[AssignmentProgressHistory]] = relationship(
+        back_populates="assignment",
+        order_by=lambda: (AssignmentProgressHistory.changed_at, AssignmentProgressHistory.id),
+    )
 
     def __repr__(self) -> str:  # pragma: no cover
         return f"<Assignment student={self.student_id} topic={self.topic_id}>"
+
+
+class AssignmentProgressHistory(IdMixin, Base):
+    """Append-only audit of progress changes and administrative admission revocation."""
+
+    __tablename__ = "assignment_progress_history"
+    __table_args__ = (
+        Index("ix_assignment_progress_history_assignment_changed", "assignment_id", "changed_at"),
+        CheckConstraint(
+            "progress_percent BETWEEN 0 AND 100", name="progress_history_percent_range"
+        ),
+        CheckConstraint(
+            "from_progress_percent IS NULL OR from_progress_percent BETWEEN 0 AND 100",
+            name="progress_history_from_percent_range",
+        ),
+        {"comment": "Журнал изменений прогресса и допуска к защите"},
+    )
+
+    assignment_id: Mapped[int] = mapped_column(
+        ForeignKey("assignments.id", ondelete="RESTRICT"), nullable=False
+    )
+    changed_by_user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    changed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=text("now()")
+    )
+    from_stage: Mapped[AssignmentStage | None] = mapped_column(
+        db_enum(AssignmentStage, "progress_history_from_stage"), nullable=True
+    )
+    from_progress_percent: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
+    current_stage: Mapped[AssignmentStage] = mapped_column(
+        db_enum(AssignmentStage, "progress_history_stage"), nullable=False
+    )
+    progress_percent: Mapped[int] = mapped_column(SmallInteger, nullable=False)
+    comment: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    assignment: Mapped[Assignment] = relationship(back_populates="progress_history")

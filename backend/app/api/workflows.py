@@ -3,14 +3,10 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, status
-from sqlalchemy import select
 
 from backend.app.dependencies import CurrentUser, DbSession, require_roles
 from backend.app.models import (
-    AcademicPeriod,
     AssignmentStatus,
-    Notification,
-    StudyGroup,
     User,
     UserRole,
 )
@@ -25,13 +21,21 @@ from backend.app.schemas.management import (
     SupervisorLimitUpdate,
 )
 from backend.app.schemas.supervisor import (
+    AdmissionRevocation,
     ApplicationDecision,
     AssignmentProgressUpdate,
     AssignmentResponse,
+    ProgressHistoryEntry,
 )
+from backend.app.services import directories
 from backend.app.services.management import manually_assign, update_limit
-from backend.app.services.read_models import student_assignments, supervisor_assignments
-from backend.app.services.supervisor import decide_application, update_assignment_progress
+from backend.app.services.progress import revoke_admission, update_assignment_progress
+from backend.app.services.read_models import (
+    assignment_progress_history,
+    student_assignments,
+    supervisor_assignments,
+)
+from backend.app.services.supervisor import decide_application
 
 router = APIRouter(tags=["workflows"])
 Supervisor = Annotated[User, Depends(require_roles(UserRole.NAUCHRUK))]
@@ -125,14 +129,36 @@ def my_notifications(
     """List only this recipient's persisted notifications."""
     return [
         NotificationResponse.model_validate(row)
-        for row in db.scalars(
-            select(Notification)
-            .where(Notification.user_id == actor.id)
-            .order_by(Notification.id.desc())
-            .offset(offset)
-            .limit(limit)
-        )
+        for row in directories.recipient_notifications(db, actor.id, offset, limit)
     ]
+
+
+@router.post(
+    "/assignments/{assignment_id}/revoke-admission",
+    response_model=AssignmentDetail,
+    responses={
+        403: {"description": "Insufficient role or another department"},
+        404: {"description": "Assignment not found"},
+        409: {"description": "Assignment is not an admitted active work"},
+    },
+)
+def revoke_work_admission(
+    assignment_id: int, data: AdmissionRevocation, db: DbSession, actor: Manager
+) -> AssignmentDetail:
+    """Revoke admission in the manager's scope with a mandatory audited explanation."""
+    return AssignmentDetail.model_validate(revoke_admission(db, actor, assignment_id, data.comment))
+
+
+@router.get(
+    "/assignments/{assignment_id}/progress-history",
+    response_model=list[ProgressHistoryEntry],
+    responses={404: {"description": "Assignment not found or outside the caller's scope"}},
+)
+def read_progress_history(
+    assignment_id: int, db: DbSession, actor: CurrentUser
+) -> list[ProgressHistoryEntry]:
+    """Read the saved timeline as owner, student, department head or administrator."""
+    return assignment_progress_history(db, actor, assignment_id)
 
 
 @router.get("/works/me", response_model=list[AssignmentDetail])
@@ -156,9 +182,7 @@ def study_groups(
     """Read group IDs used when an administrator creates a student."""
     return [
         StudyGroupResponse.model_validate(row)
-        for row in db.scalars(
-            select(StudyGroup).order_by(StudyGroup.id).offset(offset).limit(limit)
-        )
+        for row in directories.study_groups(db, offset, limit)
     ]
 
 
@@ -172,7 +196,5 @@ def academic_periods(
     """Read period IDs used when a supervisor proposes a topic."""
     return [
         PeriodResponse.model_validate(row)
-        for row in db.scalars(
-            select(AcademicPeriod).order_by(AcademicPeriod.id).offset(offset).limit(limit)
-        )
+        for row in directories.academic_periods(db, offset, limit)
     ]

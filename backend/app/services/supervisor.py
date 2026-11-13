@@ -11,32 +11,24 @@ from backend.app.models import (
     Application,
     ApplicationStatus,
     ApplicationStatusHistory,
-    Assignment,
-    AssignmentStage,
-    AssignmentStatus,
     Notification,
     Student,
-    Teacher,
     Topic,
-    TopicArchiveReason,
     TopicStatus,
     User,
 )
 from backend.app.models.enums import NotificationKind
-from backend.app.schemas.supervisor import ApplicationDecision, AssignmentProgressUpdate
+from backend.app.schemas.supervisor import ApplicationDecision
 from backend.app.services.application import expire_overdue_applications
+from backend.app.services.assignment_records import new_assignment
+from backend.app.services.profiles import require_supervisor_profile
 from backend.app.services.workflow import (
     check_workflow_scope,
     commit_workflow,
     lock_assignment_capacity,
+    lock_student,
+    withdraw_other_applications,
 )
-
-
-def require_supervisor_profile(actor: User) -> Teacher:
-    """Return the domain profile required by supervisor endpoints."""
-    if actor.teacher is None:
-        raise HTTPException(status_code=409, detail="Supervisor profile is required")
-    return actor.teacher
 
 
 def supervisor_applications(
@@ -66,6 +58,32 @@ def supervisor_applications(
     return list(db.scalars(statement.offset(offset).limit(limit)))
 
 
+def locked_pending_application(
+    db: Session, actor: User, application_id: int
+) -> tuple[Application, Topic]:
+    """Acquire student/application/topic locks and validate ownership before a decision."""
+    student_id = db.scalar(select(Application.student_id).where(Application.id == application_id))
+    if student_id is None:
+        raise HTTPException(status_code=404, detail="Application not found")
+    lock_student(db, student_id)
+    application = db.scalar(
+        select(Application)
+        .where(Application.id == application_id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
+    if application is None:
+        raise HTTPException(status_code=404, detail="Application not found")
+    topic = db.scalar(select(Topic).where(Topic.id == application.topic_id).with_for_update())
+    if topic is None:
+        raise HTTPException(status_code=404, detail="Topic not found")
+    check_workflow_scope(actor, topic)
+    if application.status != ApplicationStatus.PENDING:
+        raise HTTPException(status_code=409, detail="Application has already been decided")
+
+    return application, topic
+
+
 def decide_application(
     db: Session,
     actor: User,
@@ -77,34 +95,26 @@ def decide_application(
     """Approve or reject one pending application atomically."""
     if expire_overdue_applications(db):
         db.commit()
-    application = db.scalar(
-        select(Application).where(Application.id == application_id).with_for_update()
-    )
-    if application is None:
-        raise HTTPException(status_code=404, detail="Application not found")
-    topic = db.scalar(select(Topic).where(Topic.id == application.topic_id).with_for_update())
-    if topic is None:
-        raise HTTPException(status_code=404, detail="Topic not found")
-    check_workflow_scope(actor, topic)
-    if application.status != ApplicationStatus.PENDING:
-        raise HTTPException(status_code=409, detail="Application has already been decided")
+    application, topic = locked_pending_application(db, actor, application_id)
 
     now = datetime.now(UTC)
     if approve:
         if topic.status != TopicStatus.PUBLISHED:
             raise HTTPException(status_code=409, detail="Only published topics can be assigned")
         locked_teacher = lock_assignment_capacity(db, topic, application.student_id)
-        assignment = Assignment(
-            student_id=application.student_id,
-            topic_id=application.topic_id,
-            supervisor_id=locked_teacher.id,
-            status=AssignmentStatus.ACTIVE,
-            assigned_at=now,
-            progress_percent=0,
-            current_stage=AssignmentStage.IN_PROGRESS,
+        assignment = new_assignment(
+            application.student_id,
+            application.topic_id,
+            locked_teacher.id,
+            actor.id,
+            now,
+            decision.comment,
         )
         db.add(assignment)
         application.status = ApplicationStatus.APPROVED
+        withdraw_other_applications(
+            db, application.student_id, actor.id, now, keep_application_id=application.id
+        )
     else:
         application.status = ApplicationStatus.REJECTED
         application.cooldown_until = now + timedelta(
@@ -138,52 +148,3 @@ def decide_application(
     commit_workflow(db)
     db.refresh(application)
     return application
-
-
-def update_assignment_progress(
-    db: Session, actor: User, assignment_id: int, data: AssignmentProgressUpdate
-) -> Assignment:
-    """Update progress only for an assignment owned by the current supervisor."""
-    teacher = require_supervisor_profile(actor)
-    assignment = db.scalar(
-        select(Assignment).where(Assignment.id == assignment_id).with_for_update()
-    )
-    if assignment is None:
-        raise HTTPException(status_code=404, detail="Assignment not found")
-    if assignment.supervisor_id != teacher.id:
-        raise HTTPException(status_code=403, detail="Assignment belongs to another supervisor")
-    if assignment.status != AssignmentStatus.ACTIVE:
-        raise HTTPException(status_code=409, detail="Only active assignments can be updated")
-    if data.current_stage == AssignmentStage.DEFENDED and data.progress_percent != 100:
-        raise HTTPException(status_code=422, detail="Defended work must have 100 percent progress")
-    now = datetime.now(UTC)
-    assignment.progress_percent = (
-        100 if data.current_stage == AssignmentStage.ADMITTED_TO_DEFENSE else data.progress_percent
-    )
-    assignment.current_stage = data.current_stage
-    if data.current_stage == AssignmentStage.DEFENDED:
-        assignment.status = AssignmentStatus.COMPLETED
-        assignment.topic.status = TopicStatus.ARCHIVED
-        assignment.topic.published_at = None
-        assignment.topic.archived_at = now
-        assignment.topic.archive_reason = TopicArchiveReason.COMPLETED
-    db.add(
-        Notification(
-            user_id=assignment.student.user_id,
-            kind=NotificationKind.ASSIGNMENT_PROGRESS_UPDATED,
-            title="Обновлён прогресс ВКР",
-            body=f"Этап: {data.current_stage.value}; прогресс: {assignment.progress_percent}%.",
-            created_at=now,
-            payload={
-                "assignment_id": assignment.id,
-                "topic_id": assignment.topic_id,
-                "current_stage": data.current_stage.value,
-                "progress_percent": assignment.progress_percent,
-                "assignment_status": assignment.status.value,
-            },
-            is_read=False,
-        )
-    )
-    db.commit()
-    db.refresh(assignment)
-    return assignment

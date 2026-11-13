@@ -1,31 +1,18 @@
 """Read contracts for dashboard, workload, and student detail screens."""
 
-from datetime import datetime
-
 from pydantic import BaseModel, Field
 
-from backend.app.models.enums import AssignmentStage
 from backend.app.schemas.application import StudentApplicationResponse
 from backend.app.schemas.presentation import StudentSummary
-from backend.app.schemas.supervisor import AssignmentResponse
-
-
-class ProgressHistoryEntry(BaseModel):
-    """Reserved contract for the progress timeline; no history is fabricated."""
-
-    changed_at: datetime
-    changed_by_user_id: int | None
-    progress_percent: int = Field(ge=0, le=100)
-    current_stage: AssignmentStage
-    comment: str | None
+from backend.app.schemas.supervisor import AssignmentResponse, ProgressHistoryEntry
 
 
 class AssignmentDetail(AssignmentResponse):
-    """Assignment card with an explicit nullable progress-history placeholder."""
+    """Assignment card with events recorded since progress auditing was introduced."""
 
-    progress_history: list[ProgressHistoryEntry] | None = Field(
-        default=None,
-        description="Заглушка: история прогресса ещё не сохраняется; null означает недоступность.",
+    progress_history: list[ProgressHistoryEntry] = Field(
+        default_factory=list,
+        description="Сохранённые изменения прогресса; события до ввода журнала не восстанавливаются.",
     )
 
 

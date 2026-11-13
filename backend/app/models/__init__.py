@@ -24,7 +24,12 @@ from backend.app.models.misc import Attachment, Notification
 from backend.app.models.period import AcademicPeriod
 from backend.app.models.refs import Department, Faculty, StudyGroup
 from backend.app.models.topic import Topic, TopicDeletionRequest
-from backend.app.models.workflow import Application, ApplicationStatusHistory, Assignment
+from backend.app.models.workflow import (
+    Application,
+    ApplicationStatusHistory,
+    Assignment,
+    AssignmentProgressHistory,
+)
 
 __all__ = [
     "AcademicPeriod",
@@ -32,6 +37,7 @@ __all__ = [
     "ApplicationStatus",
     "ApplicationStatusHistory",
     "Assignment",
+    "AssignmentProgressHistory",
     "AssignmentStage",
     "AssignmentStatus",
     "Attachment",
