@@ -1,0 +1,34 @@
+/* src/pages/zavkaf/ZavkaSupervisorsPage.css */
+.accordion-item {
+  background: var(--color-bg-white);
+  border-radius: 16px;
+  border: 1px solid var(--color-border);
+  margin-bottom: 16px;
+  overflow: hidden;
+}
+
+.accordion-header {
+  padding: 20px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+}
+
+.accordion-body {
+  border-top: 1px solid var(--color-border);
+  padding: 16px 24px;
+  background-color: #F8FAFC;
+}
+
+.student-row-simple {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr 2fr 1fr;
+  padding: 12px 0;
+  font-size: 14px;
+  border-bottom: 1px solid #E2E8F0;
+}
+
+.student-row-simple:last-child {
+  border-bottom: none;
+}

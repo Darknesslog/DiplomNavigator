@@ -1,0 +1,68 @@
+.applications-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.application-card {
+  background: var(--color-bg-white);
+  border-radius: 16px;
+  border: 1px solid var(--color-border);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.app-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.app-student {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-brand-blue);
+}
+
+.app-group {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.app-topic {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--color-brand-blue);
+}
+
+.app-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.btn-approve {
+  height: 40px;
+  padding: 0 24px;
+  background-color: var(--color-accent-yellow);
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-brand-blue);
+  cursor: pointer;
+}
+
+.btn-reject {
+  height: 40px;
+  padding: 0 24px;
+  background-color: #F8FAFC;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-brand-blue);
+  cursor: pointer;
+}
