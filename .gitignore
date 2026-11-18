@@ -46,6 +46,10 @@ GEMINI.md
 !/docs/migration-history.md
 !/docs/technical-demo.md
 !/docs/test-summary.md
+!/docs/architecture.md
+!/docs/workflow.md
+!/docs/backend-review-appts.md
+!/docs/endpoint-traceability-matrix.md
 
 # Local MCP configuration and repository intelligence
 /.mcp.json

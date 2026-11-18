@@ -49,6 +49,11 @@ Student groups and departments must belong to the same faculty. Existing student
 a nullable department link because faculty alone does not identify their department; admins
 must assign it explicitly. Unassigned students see an empty supervisor list.
 
+Current limitation (reviewed 2026-11-18): department changes do not check pending
+applications, owned topics or active assignments. An administrator can therefore move
+a profile while retaining links to the former department. The planned MVP guard is not
+implemented. See R01 in the [backend review](backend-review-appts.md).
+
 ## Login policy
 
 - Email matching is case-insensitive.
@@ -58,7 +63,9 @@ must assign it explicitly. Unassigned students see an empty supervisor list.
 - After expiry, the failure count starts again. Successful login clears the failure state.
 - Login state is stored in PostgreSQL, with SELECT FOR UPDATE serializing attempts across workers.
 - Unknown emails and inactive users receive the same generic 401 message; unknown emails
-  still perform dummy password verification. Lockout is per existing active account, not
+  perform dummy password verification for passwords up to 128 characters. Oversized
+  passwords skip hashing for all identities; no constant-time guarantee is claimed.
+  Lockout is per existing active account, not
   an IP-based rate limiter. Deliberate attempts can therefore temporarily lock a known account.
 - Invalid credentials never return a token. Responses never include password hashes or counters.
 - A login cooldown prevents new logins; it does not revoke existing valid access tokens.
@@ -79,6 +86,9 @@ back to teacher; it therefore loses the distinction between supervisor and depar
 Run `uv run pytest` for the authentication and authorization tests.
 SQLite API tests validate request behavior and state persistence, not PostgreSQL row-lock
 semantics. PostgreSQL migration SQL can be rendered with `uv run alembic upgrade head --sql`.
-The actual upgrade and concurrency behavior still require verification against PostgreSQL.
+The isolated PostgreSQL suite now checks migrations, workflow concurrency and current
+database identity state. See the [current verification record](test-summary.md) and
+[isolated runner](../backend/tests/integration/README.md). These checks do not establish
+timing resistance, IP-rate limiting, or production readiness of the authentication boundary.
 
 Before an approved protected-branch push, follow the [understanding-check preparation](../feature/jwt-authorization.md#understanding-check-preparation).
