@@ -50,6 +50,9 @@ GEMINI.md
 !/docs/workflow.md
 !/docs/backend-review-appts.md
 !/docs/endpoint-traceability-matrix.md
+!/docs/review/
+/docs/review/*
+!/docs/review/test_contract_probes.py
 
 # Local MCP configuration and repository intelligence
 /.mcp.json
