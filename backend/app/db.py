@@ -1,4 +1,8 @@
-"""Подключение к базе: движок, фабрика сессий, зависимость FastAPI."""
+"""Синхронные SQLAlchemy engine/Session и зависимость FastAPI Depends(get_db).
+
+Блокирующие обращения к Session выполняются в def-роутерах. Async-роутер
+должен отдельно вынести такую работу из event loop; Depends этого не делает.
+"""
 
 from __future__ import annotations
 

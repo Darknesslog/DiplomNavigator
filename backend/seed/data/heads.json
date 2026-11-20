@@ -1,0 +1,22 @@
+[
+  {
+    "email": "seed.head.pi@example.com",
+    "first_name": "Елена",
+    "last_name": "Волкова",
+    "middle_name": "Сергеевна",
+    "department_short_name": "ПИ",
+    "position": "заведующая кафедрой",
+    "academic_degree": "кандидат технических наук",
+    "max_students": 20
+  },
+  {
+    "email": "seed.head.is@example.com",
+    "first_name": "Алексей",
+    "last_name": "Морозов",
+    "middle_name": "Викторович",
+    "department_short_name": "ИС",
+    "position": "заведующий кафедрой",
+    "academic_degree": "кандидат технических наук",
+    "max_students": 20
+  }
+]

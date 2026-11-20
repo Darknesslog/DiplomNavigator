@@ -58,6 +58,17 @@ def test_supervisor_updates_progress_and_completes_defended_work(client: TestCli
     assert response.status_code == 200, response.text
     assert response.json()["status"] == "completed"
     assert response.json()["current_stage"] == "defended"
+    student_work = client.get("/works/me", headers=bearer(3))
+    assert student_work.status_code == 200
+    assert student_work.json()[0]["status"] == "completed"
+    assert student_work.json()[0]["current_stage"] == "defended"
+    notifications = client.get("/notifications", headers=bearer(3))
+    assert notifications.status_code == 200
+    assert notifications.json()[0]["kind"] == "assignment_progress_updated"
+    with sessions() as db:
+        topic = db.get(Assignment, 1).topic
+        assert topic.status == "archived"
+        assert topic.archive_reason == "completed"
 
 
 def test_defended_work_requires_full_progress(client: TestClient, bearer):

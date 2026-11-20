@@ -134,6 +134,18 @@ erDiagram
         datetime created_at
         datetime updated_at
     }
+    topic_deletion_requests {
+        biginteger id PK
+        biginteger topic_id FK
+        biginteger requested_by_user_id FK
+        enum status
+        text reason
+        biginteger decided_by_user_id FK
+        datetime decided_at
+        text decision_comment
+        datetime created_at
+        datetime updated_at
+    }
     application_status_history {
         biginteger id PK
         biginteger application_id FK
@@ -142,6 +154,17 @@ erDiagram
         biginteger changed_by_user_id FK
         text comment
         datetime created_at
+    }
+    assignment_progress_history {
+        biginteger id PK
+        biginteger assignment_id FK
+        biginteger changed_by_user_id FK
+        datetime changed_at
+        enum from_stage
+        smallinteger from_progress_percent
+        enum current_stage
+        smallinteger progress_percent
+        text comment
     }
     attachments {
         biginteger id PK
@@ -174,8 +197,13 @@ erDiagram
     students ||--o{ assignments : "student_id"
     topics ||--o{ assignments : "topic_id"
     teachers ||--o{ assignments : "supervisor_id"
+    topics ||--o{ topic_deletion_requests : "topic_id"
+    users ||--o{ topic_deletion_requests : "requested_by_user_id"
+    users |o--o{ topic_deletion_requests : "decided_by_user_id"
     applications ||--o{ application_status_history : "application_id"
     users |o--o{ application_status_history : "changed_by_user_id"
+    assignments ||--o{ assignment_progress_history : "assignment_id"
+    users |o--o{ assignment_progress_history : "changed_by_user_id"
     topics |o--o{ attachments : "topic_id"
     applications |o--o{ attachments : "application_id"
     users |o--o{ attachments : "uploaded_by_user_id"

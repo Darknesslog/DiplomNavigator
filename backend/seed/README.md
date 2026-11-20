@@ -7,9 +7,10 @@
 У существующих аккаунтов пароль при повторном seed не меняется.
 
 Тестовые логины: `seed.supervisor.pi@example.com`,
-`seed.supervisor.is@example.com`, `seed.student.1@example.com` и последующие
-студенты из `data/students.json`. Admin и завкаф создаются отдельно:
-[USER.md](../../USER.md).
+`seed.supervisor.is@example.com`, `seed.head.pi@example.com`,
+`seed.head.is@example.com`, `seed.student.1@example.com` и последующие
+студенты из `data/students.json`. Admin создаётся отдельно:
+[USER.md](../../USER.md). Пароль всех seed-аккаунтов — значение `SEED_PASSWORD`.
 
 Запуск против PostgreSQL в Docker:
 

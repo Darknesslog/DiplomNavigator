@@ -172,6 +172,31 @@ def seed_supervisors(
     return result
 
 
+def seed_heads(
+    db: Session, departments: dict[str, Department], stats: SeedStats
+) -> dict[str, Teacher]:
+    """Create department-head accounts with teacher profiles."""
+    result: dict[str, Teacher] = {}
+    for data in load_json("heads.json"):
+        user = get_or_create_user(db, data, UserRole.ZAVKAF, stats)
+        teacher, _ = get_or_create(
+            db,
+            Teacher,
+            select(Teacher).where(Teacher.user_id == user.id),
+            lambda data=data, user=user: Teacher(
+                user_id=user.id,
+                department_id=departments[data["department_short_name"]].id,
+                position=data.get("position"),
+                academic_degree=data.get("academic_degree"),
+                max_students=data["max_students"],
+                is_available=True,
+            ),
+            stats,
+        )
+        result[data["email"].lower()] = teacher
+    return result
+
+
 def seed_students(
     db: Session, departments: dict[str, Department], groups: dict[str, StudyGroup], stats: SeedStats
 ) -> dict[str, Student]:
@@ -258,6 +283,7 @@ def main() -> None:
             if period is None:
                 raise RuntimeError("Seed academic period was not created")
             supervisors = seed_supervisors(db, departments, stats)
+            seed_heads(db, departments, stats)
             students = seed_students(db, departments, groups, stats)
             seed_topics(db, period, supervisors, students, stats)
             db.commit()

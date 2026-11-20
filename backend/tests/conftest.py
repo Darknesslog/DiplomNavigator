@@ -18,6 +18,7 @@ from backend.app.models import (
     Application,
     ApplicationStatusHistory,
     Assignment,
+    AssignmentProgressHistory,
     Base,
     Department,
     Faculty,
@@ -26,14 +27,13 @@ from backend.app.models import (
     StudyGroup,
     Teacher,
     Topic,
+    TopicDeletionRequest,
     TopicStatus,
     User,
     UserRole,
 )
 from backend.app.security import hash_password
-
-PASSWORD = "test-password-123!"
-TEST_SECRET = "test-only-secret-never-use-in-production-" * 2
+from backend.tests.constants import PASSWORD, TEST_SECRET
 
 
 @compiles(BigInteger, "sqlite")
@@ -49,7 +49,7 @@ def encoded_password() -> str:
 
 
 @pytest.fixture()
-def sessions(encoded_password: str, monkeypatch) -> Iterator[sessionmaker[Session]]:
+def sqlite_sessions(encoded_password: str, monkeypatch) -> Iterator[sessionmaker[Session]]:
     """Build only account-related tables and seed both sides of department boundaries."""
     monkeypatch.setattr(config, "SECRET_KEY", TEST_SECRET)
     monkeypatch.setattr(config, "LOGIN_COOLDOWN_MINUTES", 15)
@@ -73,7 +73,9 @@ def sessions(encoded_password: str, monkeypatch) -> Iterator[sessionmaker[Sessio
         Application.__table__,
         ApplicationStatusHistory.__table__,
         Assignment.__table__,
+        AssignmentProgressHistory.__table__,
         Notification.__table__,
+        TopicDeletionRequest.__table__,
     ]
     Base.metadata.create_all(engine, tables=tables)
     factory = sessionmaker(bind=engine, expire_on_commit=False)
@@ -181,6 +183,12 @@ def sessions(encoded_password: str, monkeypatch) -> Iterator[sessionmaker[Sessio
         db.commit()
     yield factory
     engine.dispose()
+
+
+@pytest.fixture()
+def sessions(sqlite_sessions: sessionmaker[Session]) -> sessionmaker[Session]:
+    """Default to SQLite; the integration subtree overrides only this fixture."""
+    return sqlite_sessions
 
 
 @pytest.fixture()

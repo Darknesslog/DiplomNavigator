@@ -69,7 +69,28 @@ class AssignmentProgressUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     progress_percent: int = Field(ge=0, le=100)
+    comment: str | None = Field(default=None, max_length=2000)
     current_stage: AssignmentStage = Field(
         validation_alias=AliasChoices("current_stage", "status"),
         description="Этап работы. admitted_to_defense принудительно устанавливает 100%.",
     )
+
+
+class AdmissionRevocation(BaseModel):
+    """A department decision must explain why the prior admission was revoked."""
+
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+    comment: str = Field(min_length=1, max_length=2000)
+
+
+class ProgressHistoryEntry(BaseModel):
+    """Persisted actor, time, before/after state and explanation of a progress change."""
+
+    model_config = ConfigDict(from_attributes=True)
+    changed_at: datetime
+    changed_by_user_id: int | None
+    from_stage: AssignmentStage | None
+    from_progress_percent: int | None = Field(ge=0, le=100)
+    current_stage: AssignmentStage
+    progress_percent: int = Field(ge=0, le=100)
+    comment: str | None

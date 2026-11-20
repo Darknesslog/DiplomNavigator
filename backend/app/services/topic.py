@@ -8,7 +8,6 @@ from sqlalchemy.orm import Session
 
 from backend.app.models import (
     AcademicPeriod,
-    Department,
     Student,
     Teacher,
     Topic,
@@ -19,7 +18,7 @@ from backend.app.models import (
     UserRole,
 )
 from backend.app.schemas.topic import TopicCreate, TopicStatusUpdate
-from backend.app.services.accounts import department_id
+from backend.app.services.accounts import department_id, require_department
 from backend.app.services.application import expire_overdue_applications, student_topic_query
 
 
@@ -39,14 +38,6 @@ def require_teacher(db: Session, teacher_id: int) -> Teacher:
     return teacher
 
 
-def require_department(db: Session, department_id_value: int) -> Department:
-    """Load a topic department."""
-    department = db.get(Department, department_id_value)
-    if department is None:
-        raise HTTPException(status_code=404, detail="Department not found")
-    return department
-
-
 def check_topic_scope(actor: User, topic: Topic) -> None:
     """Ensure an actor can see or moderate a topic."""
     if actor.role == UserRole.ADMIN:
@@ -58,35 +49,29 @@ def check_topic_scope(actor: User, topic: Topic) -> None:
         raise HTTPException(status_code=403, detail="Topic belongs to another supervisor")
 
 
-def create_topic(db: Session, data: TopicCreate, actor: User) -> Topic:
-    """Validate ownership and construct a draft topic."""
-    require_period(db, data.period_id)
-
+def topic_supervisor_id(actor: User, data: TopicCreate) -> int:
+    """Resolve the proposed owner and enforce supervisor source/ownership rules."""
     supervisor_id = data.supervisor_id
     if actor.role == UserRole.NAUCHRUK:
         if actor.teacher is None:
             raise HTTPException(status_code=409, detail="Supervisor profile is required")
         if supervisor_id is not None and supervisor_id != actor.teacher.id:
-            raise HTTPException(status_code=403, detail="Cannot create a topic for another supervisor")
+            raise HTTPException(
+                status_code=403, detail="Cannot create a topic for another supervisor"
+            )
         supervisor_id = actor.teacher.id
     elif supervisor_id is None:
         raise HTTPException(status_code=422, detail="supervisor_id is required")
     if actor.role == UserRole.NAUCHRUK and data.source != TopicSource.TEACHER:
-        raise HTTPException(
-            status_code=403, detail="Supervisors may create only their own topics"
-        )
+        raise HTTPException(status_code=403, detail="Supervisors may create only their own topics")
 
-    supervisor = require_teacher(db, supervisor_id)
-    topic_department_id = data.department_id or supervisor.department_id
-    if topic_department_id != supervisor.department_id:
-        raise HTTPException(
-            status_code=409, detail="Supervisor and topic departments must match"
-        )
-    if actor.role == UserRole.ZAVKAF and topic_department_id != department_id(actor):
-        raise HTTPException(status_code=403, detail="Topic is outside your department")
-    require_department(db, topic_department_id)
-    if data.proposed_by_student_id is not None:
-        student = db.get(Student, data.proposed_by_student_id)
+    return supervisor_id
+
+
+def check_proposing_student(db: Session, student_id: int | None, topic_department_id: int) -> None:
+    """Validate the optional student proposal without coupling it to topic construction."""
+    if student_id is not None:
+        student = db.get(Student, student_id)
         if student is None:
             raise HTTPException(status_code=404, detail="Proposing student not found")
         if student.department_id != topic_department_id:
@@ -94,6 +79,25 @@ def create_topic(db: Session, data: TopicCreate, actor: User) -> Topic:
                 status_code=409, detail="Proposing student is outside the topic department"
             )
 
+
+def create_topic(db: Session, data: TopicCreate, actor: User) -> Topic:
+    """Validate a proposal and apply the agreed topic publication rule."""
+    require_period(db, data.period_id)
+
+    supervisor_id = topic_supervisor_id(actor, data)
+    supervisor = require_teacher(db, supervisor_id)
+    topic_department_id = data.department_id or supervisor.department_id
+    if topic_department_id != supervisor.department_id:
+        raise HTTPException(status_code=409, detail="Supervisor and topic departments must match")
+    if actor.role == UserRole.ZAVKAF and topic_department_id != department_id(actor):
+        raise HTTPException(status_code=403, detail="Topic is outside your department")
+    require_department(db, topic_department_id)
+    check_proposing_student(db, data.proposed_by_student_id, topic_department_id)
+
+    is_published_company_topic = (
+        actor.role == UserRole.ZAVKAF and data.source == TopicSource.COMPANY
+    )
+    now = datetime.now(UTC) if is_published_company_topic else None
     topic = Topic(
         period_id=data.period_id,
         supervisor_id=supervisor.id,
@@ -104,7 +108,8 @@ def create_topic(db: Session, data: TopicCreate, actor: User) -> Topic:
         source=data.source,
         company_name=data.company_name,
         proposed_by_student_id=data.proposed_by_student_id,
-        status=TopicStatus.DRAFT,
+        status=TopicStatus.PUBLISHED if is_published_company_topic else TopicStatus.DRAFT,
+        published_at=now,
     )
     db.add(topic)
     db.commit()
@@ -134,15 +139,39 @@ def get_topic(db: Session, actor: User, topic_id: int) -> Topic:
     """Load a topic only when it is visible to the caller."""
     if expire_overdue_applications(db):
         db.commit()
-    statement = (
-        student_topic_query(actor)
-        if actor.role == UserRole.STUDENT
-        else topic_query(actor)
-    )
+    statement = student_topic_query(actor) if actor.role == UserRole.STUDENT else topic_query(actor)
     topic = db.scalar(statement.where(Topic.id == topic_id))
     if topic is None:
         raise HTTPException(status_code=404, detail="Topic not found")
     return topic
+
+
+def list_visible_topics(
+    db: Session,
+    actor: User,
+    topic_status: TopicStatus | None,
+    period_id: int | None,
+    department_id: int | None,
+    supervisor_id: int | None,
+    offset: int,
+    limit: int,
+) -> list[Topic]:
+    """Read scoped topics with the HTTP filters, without mutating their lifecycle."""
+    statement = (
+        student_topic_query(actor)
+        if actor.role == UserRole.STUDENT
+        else topic_query(actor, status_filter=topic_status)
+    )
+    filters = (
+        (Topic.status, topic_status),
+        (Topic.period_id, period_id),
+        (Topic.department_id, department_id),
+        (Topic.supervisor_id, supervisor_id),
+    )
+    for column, value in filters:
+        if value is not None:
+            statement = statement.where(column == value)
+    return list(db.scalars(statement.order_by(Topic.id).offset(offset).limit(limit)))
 
 
 def moderate_topic(db: Session, actor: User, topic_id: int, data: TopicStatusUpdate) -> Topic:

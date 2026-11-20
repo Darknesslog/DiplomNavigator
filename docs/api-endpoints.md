@@ -16,11 +16,15 @@
 | GET | `/departments` | Все авторизованные | Return the department directory to authenticated users. |
 | PATCH | `/users/{user_id}/department` | admin, zavkaf | Assign a profile's department; only admins may transfer between departments. |
 | PATCH | `/users/{user_id}/role` | admin | Assign roles as admin, retaining profiles and preventing self-demotion. |
-| POST | `/topics` | admin, nauchruk, zavkaf | Create a draft topic owned by the authenticated supervisor or department. |
+| POST | `/topics` | admin, nauchruk, zavkaf | Create an owned topic; department-head company topics are published immediately. |
 | GET | `/topics` | Все авторизованные | List only topics visible to the authenticated role. |
 | POST | `/topics/{topic_id}/applications` | student | Submit a pending topic application for the authenticated student. |
-| GET | `/topics/{topic_id}` | Все авторизованные | Return one visible topic. |
 | PATCH | `/topics/{topic_id}/status` | admin, zavkaf | Moderate a topic in the moderator's department. |
+| POST | `/topics/{topic_id}/deletion-requests` | nauchruk | Ask the department head to archive one of the supervisor's topics. |
+| GET | `/topics/deletion-requests` | admin, nauchruk, zavkaf | List deletion requests within the caller's ownership or department scope. |
+| PATCH | `/topics/deletion-requests/{request_id}/approve` | admin, zavkaf | Approve a topic deletion request and archive the topic. |
+| PATCH | `/topics/deletion-requests/{request_id}/reject` | admin, zavkaf | Reject a topic deletion request without changing the topic. |
+| GET | `/topics/{topic_id}` | Все авторизованные | Return one visible topic. |
 | GET | `/supervisor/applications` | nauchruk | List applications submitted for the supervisor's topics. |
 | GET | `/supervisor/assignments` | nauchruk | List only the current supervisor's assignments. |
 | GET | `/supervisor/assignments/{assignment_id}` | nauchruk | Return an owned assignment or 404 without disclosing another supervisor's data. |
@@ -46,6 +50,9 @@
 | PATCH | `/supervisors/{supervisor_id}/limit` | admin, zavkaf | Change a scoped supervisor limit and return recalculated departmental workload. |
 | POST | `/assignments` | admin, zavkaf | Manually assign a free topic while preserving Application and Assignment separately. |
 | GET | `/notifications` | Все авторизованные | List only this recipient's persisted notifications. |
+| POST | `/assignments/{assignment_id}/revoke-admission` | admin, zavkaf | Revoke admission in the manager's scope with a mandatory audited explanation. |
+| GET | `/assignments/{assignment_id}/progress-history` | Все авторизованные | Read the saved timeline as owner, student, department head or administrator. |
+| GET | `/works/me` | student | Read the current student's assignments and progress. |
 | GET | `/study-groups` | Все авторизованные | Read group IDs used when an administrator creates a student. |
 | GET | `/academic-periods` | Все авторизованные | Read period IDs used when a supervisor proposes a topic. |
 | GET | `/health` | Публичный | Проверка живости для docker healthcheck и мониторинга. |

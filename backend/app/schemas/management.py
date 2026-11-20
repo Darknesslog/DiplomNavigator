@@ -5,6 +5,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from backend.app.models.enums import TopicDeletionRequestStatus
 from backend.app.schemas.dashboard import SupervisorWorkload
 
 
@@ -29,6 +30,37 @@ class ManualAssignmentCreate(BaseModel):
     student_id: int = Field(gt=0)
     topic_id: int = Field(gt=0)
     comment: str = Field(min_length=1, max_length=2000)
+
+
+class TopicDeletionRequestCreate(BaseModel):
+    """Reason submitted by a supervisor when requesting topic removal."""
+
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+    reason: str | None = Field(default=None, max_length=2000)
+
+
+class TopicDeletionDecision(BaseModel):
+    """Optional head/admin comment attached to a deletion decision."""
+
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+    comment: str | None = Field(default=None, max_length=2000)
+
+
+class TopicDeletionRequestResponse(BaseModel):
+    """Topic deletion request and its current decision."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    topic_id: int
+    requested_by_user_id: int
+    status: TopicDeletionRequestStatus
+    reason: str | None
+    decided_by_user_id: int | None
+    decided_at: datetime | None
+    decision_comment: str | None
+    created_at: datetime
+    updated_at: datetime
 
 
 class NotificationResponse(BaseModel):

@@ -11,11 +11,19 @@ from sqlalchemy import (
     Index,
     String,
     Text,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.app.models.base import Base, IdMixin, TimestampMixin
-from backend.app.models.enums import TopicArchiveReason, TopicSource, TopicStatus, db_enum
+from backend.app.models.enums import (
+    AssignmentStatus,
+    TopicArchiveReason,
+    TopicDeletionRequestStatus,
+    TopicSource,
+    TopicStatus,
+    db_enum,
+)
 
 if TYPE_CHECKING:
     from backend.app.models.accounts import Student, Teacher, User
@@ -106,6 +114,54 @@ class Topic(IdMixin, TimestampMixin, Base):
     )
     assignments: Mapped[list[Assignment]] = relationship(back_populates="topic")
     attachments: Mapped[list[Attachment]] = relationship(back_populates="topic")
+    deletion_requests: Mapped[list[TopicDeletionRequest]] = relationship(
+        back_populates="topic", cascade="all, delete-orphan"
+    )
 
     def __repr__(self) -> str:  # pragma: no cover
         return f"<Topic id={self.id} {self.title[:40]!r}>"
+
+    @property
+    def is_reserved(self) -> bool:
+        """Return whether the topic has an active or completed assignment."""
+        return any(
+            assignment.status != AssignmentStatus.CANCELLED for assignment in self.assignments
+        )
+
+
+class TopicDeletionRequest(IdMixin, TimestampMixin, Base):
+    """Request from a supervisor to archive one of their topics."""
+
+    __tablename__ = "topic_deletion_requests"
+    __table_args__ = (
+        Index(
+            "uq_topic_deletion_requests_topic_pending",
+            "topic_id",
+            unique=True,
+            postgresql_where=text("status = 'pending'"),
+            sqlite_where=text("status = 'pending'"),
+        ),
+        Index("ix_topic_deletion_requests_status", "status"),
+    )
+
+    topic_id: Mapped[int] = mapped_column(
+        ForeignKey("topics.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    requested_by_user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    status: Mapped[TopicDeletionRequestStatus] = mapped_column(
+        db_enum(TopicDeletionRequestStatus, "topic_deletion_request_status"),
+        nullable=False,
+        server_default="pending",
+    )
+    reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    decided_by_user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    decision_comment: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    topic: Mapped[Topic] = relationship(back_populates="deletion_requests")
+    requested_by: Mapped[User] = relationship(foreign_keys=[requested_by_user_id])
+    decided_by: Mapped[User | None] = relationship(foreign_keys=[decided_by_user_id])
