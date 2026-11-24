@@ -1,90 +1,90 @@
-import { useState } from 'react'
-import { StatCard } from '../components/Display'
+import { useState } from "react";
+import { StatCard } from "../components/Display";
 
 export function SupervisorCabinet() {
-  const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState('Все статусы')
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("Все статусы");
 
   const [students, setStudents] = useState([
     {
       id: 1,
-      name: 'Александр Иванов',
-      group: 'ИС-41',
-      topic: 'Разработка системы управления дипломными проектами',
+      name: "Александр Иванов",
+      group: "ИС-41",
+      topic: "Разработка системы управления дипломными проектами",
       progress: 75,
-      status: 'В работе',
-      deadline: '15.05.2027',
+      status: "В работе",
+      deadline: "15.05.2027",
     },
     {
       id: 2,
-      name: 'Мария Смирнова',
-      group: 'ИС-41',
-      topic: 'Анализ данных для поддержки принятия решений',
+      name: "Мария Смирнова",
+      group: "ИС-41",
+      topic: "Анализ данных для поддержки принятия решений",
       progress: 45,
-      status: 'В работе',
-      deadline: '20.05.2027',
+      status: "В работе",
+      deadline: "20.05.2027",
     },
     {
       id: 3,
-      name: 'Дмитрий Козлов',
-      group: 'ПИ-42',
-      topic: 'Разработка веб-приложения для кафедры',
+      name: "Дмитрий Козлов",
+      group: "ПИ-42",
+      topic: "Разработка веб-приложения для кафедры",
       progress: 100,
-      status: 'На проверке',
-      deadline: '10.05.2027',
+      status: "На проверке",
+      deadline: "10.05.2027",
     },
     {
       id: 4,
-      name: 'Екатерина Волкова',
-      group: 'ИС-41',
-      topic: 'Применение машинного обучения в образовании',
+      name: "Екатерина Волкова",
+      group: "ИС-41",
+      topic: "Применение машинного обучения в образовании",
       progress: 20,
-      status: 'Не начата',
-      deadline: '25.05.2027',
+      status: "Не начата",
+      deadline: "25.05.2027",
     },
     {
       id: 5,
-      name: 'Артём Соколов',
-      group: 'ПИ-42',
-      topic: 'Проектирование информационной системы кафедры',
+      name: "Артём Соколов",
+      group: "ПИ-42",
+      topic: "Проектирование информационной системы кафедры",
       progress: 60,
-      status: 'В работе',
-      deadline: '18.05.2027',
+      status: "В работе",
+      deadline: "18.05.2027",
     },
-  ])
+  ]);
 
   const filteredStudents = students.filter((student) => {
     const matchesSearch =
       student.name.toLowerCase().includes(search.toLowerCase()) ||
       student.topic.toLowerCase().includes(search.toLowerCase()) ||
-      student.group.toLowerCase().includes(search.toLowerCase())
+      student.group.toLowerCase().includes(search.toLowerCase());
 
     const matchesStatus =
-      statusFilter === 'Все статусы' || student.status === statusFilter
+      statusFilter === "Все статусы" || student.status === statusFilter;
 
-    return matchesSearch && matchesStatus
-  })
+    return matchesSearch && matchesStatus;
+  });
 
   function changeStatus(id: number, status: string) {
     setStudents((current) =>
       current.map((student) =>
         student.id === id ? { ...student, status } : student,
       ),
-    )
+    );
   }
 
   const averageProgress = Math.round(
     students.reduce((sum, student) => sum + student.progress, 0) /
-    students.length,
-  )
+      students.length,
+  );
 
   const inProgress = students.filter(
-    (student) => student.status === 'В работе',
-  ).length
+    (student) => student.status === "В работе",
+  ).length;
 
   const onReview = students.filter(
-    (student) => student.status === 'На проверке',
-  ).length
+    (student) => student.status === "На проверке",
+  ).length;
 
   return (
     <div className="page-content">
@@ -181,10 +181,10 @@ export function SupervisorCabinet() {
                     <div className="student-cell">
                       <div className="avatar small-avatar">
                         {student.name
-                          .split(' ')
+                          .split(" ")
                           .map((part) => part[0])
                           .slice(0, 2)
-                          .join('')}
+                          .join("")}
                       </div>
                       <div>
                         <strong>{student.name}</strong>
@@ -233,5 +233,5 @@ export function SupervisorCabinet() {
         </div>
       </section>
     </div>
-  )
+  );
 }

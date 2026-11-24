@@ -1,8 +1,8 @@
 // src/pages/supervisor/SupervisorTopicsApplicationsPage.tsx
-import React, { useEffect, useState } from 'react';
-import { fetchApplications } from '../../shared/api/applications';
-import type { Application } from '../../entities/application/types';
-import './SupervisorTopicsApplicationsPage.css';
+import React, { useEffect, useState } from "react";
+import { fetchApplications } from "../../shared/api/applications";
+import type { Application } from "../../entities/application/types";
+import "./SupervisorTopicsApplicationsPage.css";
 
 export const SupervisorTopicsApplicationsPage: React.FC = () => {
   const [apps, setApps] = useState<Application[]>([]);
@@ -14,8 +14,10 @@ export const SupervisorTopicsApplicationsPage: React.FC = () => {
       .finally(() => setIsLoading(false));
   }, []);
 
-  const handleDecision = (id: number, status: 'approved' | 'rejected') => {
-    setApps((prev) => prev.map((app) => (app.id === id ? { ...app, status } : app)));
+  const handleDecision = (id: number, status: "approved" | "rejected") => {
+    setApps((prev) =>
+      prev.map((app) => (app.id === id ? { ...app, status } : app)),
+    );
   };
 
   if (isLoading) {
@@ -36,19 +38,41 @@ export const SupervisorTopicsApplicationsPage: React.FC = () => {
                 <div className="app-student">{app.student_name}</div>
                 <div className="app-group">Группа {app.student_group}</div>
               </div>
-              {app.status === 'pending' && <span className="progress-pill">Ожидает решения</span>}
-              {app.status === 'approved' && <span className="progress-pill" style={{ backgroundColor: '#ECFDF5', color: '#047857' }}>Одобрено</span>}
-              {app.status === 'rejected' && <span className="progress-pill" style={{ backgroundColor: '#FBEFEC', color: '#9B3F39' }}>Отклонено</span>}
+              {app.status === "pending" && (
+                <span className="progress-pill">Ожидает решения</span>
+              )}
+              {app.status === "approved" && (
+                <span
+                  className="progress-pill"
+                  style={{ backgroundColor: "#ECFDF5", color: "#047857" }}
+                >
+                  Одобрено
+                </span>
+              )}
+              {app.status === "rejected" && (
+                <span
+                  className="progress-pill"
+                  style={{ backgroundColor: "#FBEFEC", color: "#9B3F39" }}
+                >
+                  Отклонено
+                </span>
+              )}
             </div>
 
             <div className="app-topic">{app.topic_title}</div>
 
-            {app.status === 'pending' && (
+            {app.status === "pending" && (
               <div className="app-actions">
-                <button className="btn-approve" onClick={() => handleDecision(app.id, 'approved')}>
+                <button
+                  className="btn-approve"
+                  onClick={() => handleDecision(app.id, "approved")}
+                >
                   ✓ Одобрить
                 </button>
-                <button className="btn-reject" onClick={() => handleDecision(app.id, 'rejected')}>
+                <button
+                  className="btn-reject"
+                  onClick={() => handleDecision(app.id, "rejected")}
+                >
                   Отклонить
                 </button>
               </div>

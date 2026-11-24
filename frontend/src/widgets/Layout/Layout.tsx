@@ -1,9 +1,15 @@
 // src/widgets/Layout/Layout.tsx
-import React from 'react';
+import React, { useState } from 'react';
+import { GraduationCap, ChartLine, Users, BookOpen, FileText, Bell, CircleHelp, Settings, PanelLeftClose, Pin } from 'lucide-react';
 import './Layout.css';
+import '../../pages/supervisor/SupervisorExtras.css';
+import { SupervisorProfileMenu } from './SupervisorProfile';
+import type { Appearance } from '../../entities/user/supervisorAccount';
 
 interface LayoutProps {
   children: React.ReactNode;
+  appearance?: Appearance;
+  unreadCount?: number;
   activeTab?: string;
   onTabChange?: (tab: string) => void;
   userRole: 'student' | 'nauchruk' | 'zavkaf';
@@ -13,12 +19,34 @@ interface LayoutProps {
 
 export const Layout: React.FC<LayoutProps> = ({
   children,
+  appearance, unreadCount = 0,
   activeTab,
   onTabChange,
   userRole,
   userName,
   onLogout,
 }) => {
+  const [collapsed, setCollapsed] = useState(false);
+  const [pinned, setPinned] = useState(false);
+  if (userRole === 'nauchruk') {
+    const items = [
+      { key: 'dashboard', label: 'Главная', Icon: ChartLine, ready: true },
+      { key: 'students', label: 'Мои студенты', Icon: Users, ready: true },
+      { key: 'applications', label: 'Мои темы', Icon: BookOpen, ready: true },
+      { key: 'reports', label: 'Отчёты', Icon: FileText, ready: true },
+      { key: 'notifications', label: 'Уведомления', Icon: Bell, ready: true },
+      { key: 'help', label: 'Помощь', Icon: CircleHelp, ready: true },
+      { key: 'settings', label: 'Настройки', Icon: Settings, ready: true },
+    ];
+    return <div data-theme={appearance?.theme} data-font={appearance?.font} className={`sup-shell ${collapsed ? 'sup-collapsed' : ''}`}>
+      <aside className={`sup-sidebar ${pinned ? 'sup-pinned' : ''}`}>
+        <div className="sup-brand"><span className="sup-brand-icon"><GraduationCap size={23} /></span>{!collapsed && <strong>ДипломНавигатор</strong>}</div>
+        <div className="sup-controls"><button title={collapsed ? 'Развернуть' : 'Свернуть'} aria-expanded={!collapsed} onClick={() => setCollapsed(v => !v)}><PanelLeftClose size={15} />{!collapsed && 'Свернуть'}</button>{!collapsed && <button aria-pressed={pinned} onClick={() => setPinned(v => !v)}><Pin size={15} />{pinned ? 'Открепить' : 'Закрепить'}</button>}</div>
+        <nav>{items.map(({ key, label, Icon, ready }) => <button key={key} title={ready ? label : `${label} — в разработке`} disabled={!ready} className={activeTab === key ? 'active' : ''} onClick={() => onTabChange?.(key)}><Icon size={23} />{!collapsed && label}{key === 'notifications' && unreadCount > 0 && <span className="sx-count">{unreadCount}</span>}</button>)}</nav>
+      </aside>
+      <div className="sup-main"><header className="sup-header"><strong className="sx-page-title">{items.find(i => i.key === activeTab)?.label}</strong><SupervisorProfileMenu onLogout={onLogout} /></header><main className="sup-content">{children}</main></div>
+    </div>;
+  }
   return (
     <div className="layout-shell">
       <header className="layout-header">
@@ -33,12 +61,6 @@ export const Layout: React.FC<LayoutProps> = ({
               <>
                 <button className={`nav-btn ${activeTab === 'catalog' ? 'active' : ''}`} onClick={() => onTabChange('catalog')}>Каталог тем</button>
                 <button className={`nav-btn ${activeTab === 'my-work' ? 'active' : ''}`} onClick={() => onTabChange('my-work')}>Моя работа</button>
-              </>
-            )}
-            {userRole === 'nauchruk' && (
-              <>
-                <button className={`nav-btn ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => onTabChange('dashboard')}>Главная</button>
-                <button className={`nav-btn ${activeTab === 'applications' ? 'active' : ''}`} onClick={() => onTabChange('applications')}>Заявки</button>
               </>
             )}
             {userRole === 'zavkaf' && (
@@ -66,10 +88,10 @@ export const Layout: React.FC<LayoutProps> = ({
             Настройки
           </button>
           <div className="layout-profile">
-            <div className="profile-avatar">{userRole === 'zavkaf' ? 'ЕП' : userRole === 'nauchruk' ? 'АМ' : 'АИ'}</div>
+            <div className="profile-avatar">{userRole === 'zavkaf' ? 'ЕП' : 'АИ'}</div>
             <div className="profile-info">
               <span className="profile-name">{userName}</span>
-              <span className="profile-role">{userRole === 'zavkaf' ? 'Заведующий кафедрой' : userRole === 'nauchruk' ? 'Научный руководитель' : 'Студент'}</span>
+              <span className="profile-role">{userRole === 'zavkaf' ? 'Заведующий кафедрой' : 'Студент'}</span>
             </div>
           </div>
           <button
