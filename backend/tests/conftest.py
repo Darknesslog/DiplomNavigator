@@ -21,6 +21,7 @@ from backend.app.models import (
     AssignmentProgressHistory,
     Base,
     Department,
+    DepartmentChangeHistory,
     Faculty,
     Notification,
     Student,
@@ -76,6 +77,7 @@ def sqlite_sessions(encoded_password: str, monkeypatch) -> Iterator[sessionmaker
         AssignmentProgressHistory.__table__,
         Notification.__table__,
         TopicDeletionRequest.__table__,
+        DepartmentChangeHistory.__table__,
     ]
     Base.metadata.create_all(engine, tables=tables)
     factory = sessionmaker(bind=engine, expire_on_commit=False)

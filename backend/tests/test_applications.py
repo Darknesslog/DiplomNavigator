@@ -3,8 +3,10 @@
 from datetime import UTC, datetime, timedelta
 
 from fastapi.testclient import TestClient
+from sqlalchemy import select
 
-from backend.app.models import Application, ApplicationStatus, Topic, TopicStatus
+from backend.app.models import Application, ApplicationStatus, Notification, Topic, TopicStatus
+from backend.app.services.application import expire_overdue_applications
 
 
 def test_student_creates_application_for_published_topic(client: TestClient, bearer, sessions):
@@ -65,7 +67,7 @@ def test_rejection_blocks_only_same_student_during_cooldown(client: TestClient, 
     assert "temporarily unavailable" in retry.json()["detail"]
 
 
-def test_expired_application_archives_topic(client: TestClient, bearer, sessions):
+def test_explicit_expiration_preserves_topic(client: TestClient, bearer, sessions):
     with sessions() as db:
         application = db.get(Application, 1)
         application.expires_at = datetime.now(UTC) - timedelta(seconds=1)
@@ -74,13 +76,18 @@ def test_expired_application_archives_topic(client: TestClient, bearer, sessions
     response = client.get("/topics", headers=bearer(5))
 
     assert response.status_code == 200
-    assert all(topic["id"] != 1 for topic in response.json())
+    with sessions() as db:
+        assert db.get(Application, 1).status == ApplicationStatus.PENDING
+        assert expire_overdue_applications(db) == 1
+        db.commit()
     with sessions() as db:
         application = db.get(Application, 1)
         topic = db.get(Topic, 1)
         assert application.status == ApplicationStatus.EXPIRED
-        assert topic.status == TopicStatus.ARCHIVED
-        assert topic.archive_reason == "expired"
+        assert topic.status == TopicStatus.PUBLISHED
+        assert topic.archive_reason is None
+        assert len(application.history) == 1
+        assert db.scalar(select(Notification)).kind == "application_expired"
 
 
 def test_student_cannot_apply_to_archived_topic(client: TestClient, bearer, sessions):

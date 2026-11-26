@@ -1,7 +1,5 @@
 """Atomic department interventions using the same workflow rules as supervisors."""
 
-from datetime import UTC, datetime
-
 from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -14,21 +12,21 @@ from backend.app.models import (
     Assignment,
     Notification,
     Teacher,
-    Topic,
     TopicStatus,
     User,
+    UserRole,
 )
 from backend.app.models.enums import NotificationKind
 from backend.app.schemas.management import LimitUpdateResponse, ManualAssignmentCreate
 from backend.app.services.accounts import check_department_scope
-from backend.app.services.application import expire_overdue_applications
 from backend.app.services.assignment_records import new_assignment
 from backend.app.services.read_models import workload_card, workload_query
 from backend.app.services.workflow import (
+    check_locked_assignment_capacity,
     commit_workflow,
-    lock_assignment_capacity,
-    lock_student,
+    lock_workflow_rows,
     withdraw_other_applications,
+    workflow_now,
 )
 
 
@@ -69,12 +67,10 @@ def update_limit(db: Session, actor: User, teacher_id: int, maximum: int) -> Lim
 
 def manually_assign(db: Session, actor: User, data: ManualAssignmentCreate) -> Assignment:
     """Assign as a manager even in a closed period; capacity/scope still apply."""
-    if expire_overdue_applications(db):
-        db.commit()
-    lock_student(db, data.student_id)
-    topic = db.scalar(select(Topic).where(Topic.id == data.topic_id).with_for_update())
-    if topic is None:
-        raise HTTPException(status_code=404, detail="Topic not found")
+    rows = lock_workflow_rows(db, actor, data.student_id, data.topic_id)
+    topic = rows.topic
+    if actor.role not in (UserRole.ADMIN, UserRole.ZAVKAF):
+        raise HTTPException(status_code=403, detail="Management role is required")
     check_department_scope(actor, topic.department_id)
     if topic.status != TopicStatus.PUBLISHED:
         raise HTTPException(status_code=409, detail="Only published topics can be assigned")
@@ -88,8 +84,8 @@ def manually_assign(db: Session, actor: User, data: ManualAssignmentCreate) -> A
         is not None
     ):
         raise HTTPException(status_code=409, detail="Decide the existing application first")
-    teacher = lock_assignment_capacity(db, topic, data.student_id)
-    now = datetime.now(UTC)
+    teacher = check_locked_assignment_capacity(db, rows)
+    now = workflow_now(db)
     application = Application(
         student_id=data.student_id,
         topic_id=topic.id,
@@ -117,7 +113,7 @@ def manually_assign(db: Session, actor: User, data: ManualAssignmentCreate) -> A
         data.comment,
     )
     db.add_all([application, assignment])
-    withdraw_other_applications(db, data.student_id, actor.id, now)
+    withdraw_other_applications(rows.applications, actor.id, now)
     # Flush also assigns the application's identity for the notification.
     try:
         db.flush()

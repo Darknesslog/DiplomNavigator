@@ -20,6 +20,7 @@ from backend.app.models import (
 from backend.app.models.enums import NotificationKind
 from backend.app.schemas.supervisor import AssignmentProgressUpdate
 from backend.app.services.accounts import check_department_scope
+from backend.app.services.locking import lock_participants, lock_topic
 from backend.app.services.profiles import require_supervisor_profile
 from backend.app.services.workflow import commit_workflow
 
@@ -33,8 +34,15 @@ PROGRESS_TRANSITIONS: dict[AssignmentStage, frozenset[AssignmentStage]] = {
 }
 
 
-def locked_assignment(db: Session, assignment_id: int) -> Assignment:
+def locked_assignment(db: Session, assignment_id: int, actor: User) -> Assignment:
     """Lock and refresh an assignment before validating a progress command."""
+    snapshot = db.get(Assignment, assignment_id)
+    if snapshot is None:
+        raise HTTPException(status_code=404, detail="Assignment not found")
+    lock_participants(
+        db, actor, student_ids=[snapshot.student_id], teacher_ids=[snapshot.supervisor_id]
+    )
+    lock_topic(db, snapshot.topic_id)
     assignment = db.scalar(
         select(Assignment)
         .where(Assignment.id == assignment_id)
@@ -88,7 +96,7 @@ def update_assignment_progress(
 ) -> Assignment:
     """Update progress only for an assignment owned by the current supervisor."""
     teacher = require_supervisor_profile(actor)
-    assignment = locked_assignment(db, assignment_id)
+    assignment = locked_assignment(db, assignment_id, actor)
     if assignment.supervisor_id != teacher.id:
         raise HTTPException(status_code=403, detail="Assignment belongs to another supervisor")
     percent = validated_progress(assignment, data)
@@ -128,7 +136,7 @@ def revoke_admission(db: Session, actor: User, assignment_id: int, comment: str)
         raise HTTPException(status_code=403, detail="Only department heads may revoke admission")
     if not comment.strip():
         raise HTTPException(status_code=422, detail="Revocation requires a comment")
-    assignment = locked_assignment(db, assignment_id)
+    assignment = locked_assignment(db, assignment_id, actor)
     check_department_scope(actor, assignment.topic.department_id)
     if (
         assignment.status != AssignmentStatus.ACTIVE

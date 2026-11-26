@@ -52,15 +52,15 @@ def test_projections_only_select_even_with_overdue_applications(sessions, projec
     "path,actor",
     [("/applications/me", 3), ("/dashboard/supervisor", 4), ("/dashboard/head", 2)],
 )
-def test_api_keeps_lazy_expiration_outside_projection(client, bearer, sessions, path, actor):
+def test_get_does_not_run_expiration(client, bearer, sessions, path, actor):
     with sessions() as db:
         db.get(Application, 1).expires_at = datetime.now(UTC) - timedelta(seconds=1)
         db.commit()
     response = client.get(path, headers=bearer(actor))
     assert response.status_code == 200, response.text
     with sessions() as db:
-        assert db.get(Application, 1).status == ApplicationStatus.EXPIRED
-        assert db.get(Topic, 1).status == TopicStatus.ARCHIVED
+        assert db.get(Application, 1).status == ApplicationStatus.PENDING
+        assert db.get(Topic, 1).status == TopicStatus.PUBLISHED
 
 
 def test_out_of_scope_dashboard_does_not_run_expiration(client, bearer, sessions):

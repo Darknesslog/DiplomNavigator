@@ -8,21 +8,25 @@ from sqlalchemy.orm import Session
 
 from backend.app import config
 from backend.app.models import (
-    AcademicPeriod,
     Application,
     ApplicationStatus,
     ApplicationStatusHistory,
+    Notification,
     PeriodStatus,
+    Student,
     Topic,
-    TopicArchiveReason,
     TopicStatus,
     User,
+    UserRole,
 )
+from backend.app.models.enums import NotificationKind
 from backend.app.schemas.application import ApplicationCreate
 from backend.app.services.workflow import (
+    as_utc,
     check_assignment_availability,
     commit_workflow,
-    lock_student,
+    lock_workflow_rows,
+    workflow_now,
 )
 
 
@@ -32,64 +36,100 @@ def application_deadline(created_at: datetime) -> datetime:
     return created_at + timedelta(minutes=config.APPLICATION_DECISION_TIMEOUT_MINUTES)
 
 
+def expire_locked_application(db: Session, application: Application, now: datetime) -> bool:
+    """Transition one locked pending row and enqueue its events; caller owns commit."""
+    if (
+        application.status != ApplicationStatus.PENDING
+        or application.expires_at is None
+        or as_utc(application.expires_at) > now
+    ):
+        return False
+    application.status = ApplicationStatus.EXPIRED
+    application.decided_at = now
+    application.decided_by_user_id = None
+    application.cooldown_until = None
+    application.decision_comment = "Application expired before supervisor decision"
+    application.history.append(
+        ApplicationStatusHistory(
+            from_status=ApplicationStatus.PENDING,
+            to_status=ApplicationStatus.EXPIRED,
+            changed_by_user_id=None,
+            comment=application.decision_comment,
+            created_at=now,
+        )
+    )
+    db.add(
+        Notification(
+            user_id=application.student.user_id,
+            kind=NotificationKind.APPLICATION_EXPIRED,
+            title="Срок рассмотрения заявки истёк",
+            body=application.decision_comment,
+            created_at=now,
+            payload={"application_id": application.id, "topic_id": application.topic_id},
+            is_read=False,
+        )
+    )
+    return True
+
+
 def expire_overdue_applications(db: Session, now: datetime | None = None) -> int:
-    """Expire pending applications and archive their topics."""
-    now = now or datetime.now(UTC)
+    """Explicit maintenance transaction: sorted U -> S -> A, never lock/change T.
+
+    Caller supplies a fresh session and commits even a zero-result batch to release
+    parent locks. SKIP LOCKED at each level lets concurrent workers make progress.
+    An explicit now is reserved for deterministic maintenance/tests.
+    """
+    candidates = list(
+        db.execute(
+            select(Application.id, Application.student_id, Student.user_id)
+            .join(Student, Application.student_id == Student.id)
+            .where(
+                Application.status == ApplicationStatus.PENDING,
+                Application.expires_at <= (now or workflow_now(db)),
+            )
+            .order_by(Application.id)
+        )
+    )
+    if not candidates:
+        return 0
+    user_ids = set(
+        db.scalars(
+            select(User.id)
+            .where(User.id.in_({row.user_id for row in candidates}))
+            .order_by(User.id)
+            .with_for_update(read=True, skip_locked=True)
+        )
+    )
+    students = list(
+        db.scalars(
+            select(Student)
+            .where(
+                Student.id.in_({row.student_id for row in candidates if row.user_id in user_ids}),
+                Student.user_id.in_(user_ids),
+            )
+            .order_by(Student.id)
+            .with_for_update(skip_locked=True)
+            .execution_options(populate_existing=True)
+        )
+    )
+    student_ids = {row.id for row in students}
     applications = list(
         db.scalars(
             select(Application)
             .where(
-                Application.status == ApplicationStatus.PENDING,
-                Application.expires_at.is_not(None),
-                Application.expires_at <= now,
+                Application.id.in_({row.id for row in candidates}),
+                Application.student_id.in_(student_ids),
             )
             .order_by(Application.id)
             .with_for_update(skip_locked=True)
             .execution_options(populate_existing=True)
         )
     )
-    for application in applications:
-        application.status = ApplicationStatus.EXPIRED
-        application.decided_at = now
-        application.decision_comment = "Application expired before supervisor decision"
-        application.history.append(
-            ApplicationStatusHistory(
-                from_status=ApplicationStatus.PENDING,
-                to_status=ApplicationStatus.EXPIRED,
-                changed_by_user_id=None,
-                comment=application.decision_comment,
-                created_at=now,
-            )
-        )
-        topic = db.scalar(select(Topic).where(Topic.id == application.topic_id).with_for_update())
-        if topic is not None and topic.status == TopicStatus.PUBLISHED:
-            topic.status = TopicStatus.ARCHIVED
-            topic.archived_at = now
-            topic.archive_reason = TopicArchiveReason.EXPIRED
-            topic.published_at = None
-    if applications:
+    final_now = as_utc(now) if now is not None else workflow_now(db)
+    count = sum(expire_locked_application(db, row, final_now) for row in applications)
+    if count:
         db.flush()
-    return len(applications)
-
-
-def refresh_expired_applications(db: Session) -> None:
-    """Persist lazy expiration as a command, outside read-only projections."""
-    if expire_overdue_applications(db):
-        commit_workflow(db)
-
-
-def require_period_not_closed(db: Session, period_id: int) -> None:
-    """Hold the period state stable while a student submits an application."""
-    period = db.scalar(
-        select(AcademicPeriod)
-        .where(AcademicPeriod.id == period_id)
-        .with_for_update(read=True)
-        .execution_options(populate_existing=True)
-    )
-    if period is None:
-        raise HTTPException(status_code=409, detail="Academic period not found")
-    if period.status == PeriodStatus.CLOSED:
-        raise HTTPException(status_code=403, detail="Период подачи заявок закрыт")
+    return count
 
 
 def check_application_reservation(
@@ -128,18 +168,21 @@ def create_application(
     """Create one pending application for the authenticated student."""
     if actor.student is None:
         raise HTTPException(status_code=409, detail="Student profile is required")
-    if expire_overdue_applications(db):
-        db.commit()
-    student = lock_student(db, actor.student.id)
-    topic = db.scalar(select(Topic).where(Topic.id == topic_id).with_for_update())
-    if topic is None:
-        raise HTTPException(status_code=404, detail="Topic not found")
+    rows = lock_workflow_rows(db, actor, actor.student.id, topic_id)
+    student, topic, period = rows.student, rows.topic, rows.period
+    if actor.role != UserRole.STUDENT:
+        raise HTTPException(status_code=403, detail="Student role is required")
     if topic.status != TopicStatus.PUBLISHED:
         raise HTTPException(status_code=409, detail="Only published topics are available")
-    now = datetime.now(UTC)
     if topic.department_id != student.department_id:
         raise HTTPException(status_code=403, detail="Topic is outside student's department")
-    require_period_not_closed(db, topic.period_id)
+    now = workflow_now(db)
+    if (
+        period.status != PeriodStatus.OPEN
+        or now < as_utc(period.application_opens_at)
+        or now >= as_utc(period.application_closes_at)
+    ):
+        raise HTTPException(status_code=403, detail="Период подачи заявок закрыт")
     check_assignment_availability(db, student.id, topic.id)
     check_application_reservation(db, student.id, topic.id, now)
     application = Application(

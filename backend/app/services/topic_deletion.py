@@ -7,8 +7,6 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from backend.app.models import (
-    Assignment,
-    AssignmentStatus,
     Notification,
     Topic,
     TopicArchiveReason,
@@ -19,6 +17,8 @@ from backend.app.models import (
     UserRole,
 )
 from backend.app.models.enums import NotificationKind
+from backend.app.services.lifecycle_guards import check_topic_closure
+from backend.app.services.locking import lock_participants, lock_topic
 
 
 def create_topic_deletion_request(
@@ -27,9 +27,8 @@ def create_topic_deletion_request(
     """Create one pending deletion request for the supervisor's own topic."""
     if actor.role != UserRole.NAUCHRUK or actor.teacher is None:
         raise HTTPException(status_code=403, detail="Only supervisors may request topic deletion")
-    topic = db.scalar(select(Topic).where(Topic.id == topic_id).with_for_update())
-    if topic is None:
-        raise HTTPException(status_code=404, detail="Topic not found")
+    lock_participants(db, actor)
+    topic = lock_topic(db, topic_id)
     if topic.supervisor_id != actor.teacher.id:
         raise HTTPException(status_code=403, detail="Topic belongs to another supervisor")
     if topic.status == TopicStatus.ARCHIVED:
@@ -62,14 +61,17 @@ def decide_topic_deletion_request(
     approve: bool,
 ) -> TopicDeletionRequest:
     """Approve or reject a deletion request within the actor's scope."""
-    request = db.scalar(
-        select(TopicDeletionRequest).where(TopicDeletionRequest.id == request_id).with_for_update()
-    )
+    request = db.get(TopicDeletionRequest, request_id)
     if request is None:
         raise HTTPException(status_code=404, detail="Topic deletion request not found")
-    topic = db.scalar(select(Topic).where(Topic.id == request.topic_id).with_for_update())
-    if topic is None:
-        raise HTTPException(status_code=404, detail="Topic not found")
+    lock_participants(db, actor, user_ids=[request.requested_by_user_id])
+    topic = lock_topic(db, request.topic_id)
+    request = db.scalar(
+        select(TopicDeletionRequest)
+        .where(TopicDeletionRequest.id == request_id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
     if actor.role == UserRole.ADMIN:
         pass
     elif actor.role == UserRole.ZAVKAF and actor.teacher is not None:
@@ -85,6 +87,8 @@ def decide_topic_deletion_request(
         )
     if topic.status == TopicStatus.ARCHIVED:
         raise HTTPException(status_code=409, detail="Topic is already archived")
+    if approve:
+        check_topic_closure(db, topic.id)
     request.status = (
         TopicDeletionRequestStatus.APPROVED if approve else TopicDeletionRequestStatus.REJECTED
     )
@@ -92,16 +96,6 @@ def decide_topic_deletion_request(
     request.decided_at = datetime.now(UTC)
     request.decision_comment = comment
     if approve:
-        active_assignment = db.scalar(
-            select(Assignment.id).where(
-                Assignment.topic_id == topic.id,
-                Assignment.status == AssignmentStatus.ACTIVE,
-            )
-        )
-        if active_assignment is not None:
-            raise HTTPException(
-                status_code=409, detail="Topics with active assignments cannot be deleted"
-            )
         topic.status = TopicStatus.ARCHIVED
         topic.published_at = None
         topic.archived_at = request.decided_at

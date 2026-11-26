@@ -12,6 +12,7 @@
 | `c6d1e2f3a4b5` | `b5c8d0e3f712` | Add supervisor topic deletion requests. |
 | `c7e2f3a4b5c6` | `c6d1e2f3a4b5` | Align topic deletion request comments with ORM metadata. |
 | `d8f3a4b5c6d7` | `c7e2f3a4b5c6` | Persist progress changes and administrative admission revocations. |
+| `e9a4b5c6d7e8` | `d8f3a4b5c6d7` | Audit department changes atomically with the profile update. |
 
-Единственная вершина: `d8f3a4b5c6d7`.
+Единственная вершина: `e9a4b5c6d7e8`.
 Применение: `uv run alembic upgrade head`; проверка: `uv run alembic current`.

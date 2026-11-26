@@ -9,7 +9,7 @@ from backend.app.models import ApplicationStatus, User, UserRole
 from backend.app.schemas.application import ApplicationCreate, StudentApplicationResponse
 from backend.app.schemas.dashboard import HeadDashboard, SupervisorDashboard, SupervisorWorkload
 from backend.app.schemas.supervisor import ApplicationDecision
-from backend.app.services.application import create_application, refresh_expired_applications
+from backend.app.services.application import create_application
 from backend.app.services.read_models import (
     department_workload,
     head_dashboard,
@@ -42,7 +42,6 @@ def my_applications(
     limit: Limit = 50,
 ) -> list[StudentApplicationResponse]:
     """Read only the current student's requests, including decisions and deadlines."""
-    refresh_expired_applications(db)
     return visible_applications(db, actor, application_status, offset, limit)
 
 
@@ -55,7 +54,6 @@ def booking_requests(
     limit: Limit = 50,
 ) -> list[StudentApplicationResponse]:
     """Supervisors see owned topics, heads their department, and admins all requests."""
-    refresh_expired_applications(db)
     return visible_applications(db, actor, application_status, offset, limit)
 
 
@@ -106,7 +104,6 @@ def reject_request(
 @router.get("/supervisor/dashboard", response_model=SupervisorDashboard)
 def read_supervisor_dashboard(db: DbSession, actor: Supervisor) -> SupervisorDashboard:
     """Read the supervisor's load, counters, and recent application/assignment cards."""
-    refresh_expired_applications(db)
     return supervisor_dashboard(db, actor)
 
 
@@ -117,10 +114,7 @@ def read_head_dashboard(
     department_id: DepartmentFilter = None,
 ) -> HeadDashboard:
     """Read departmental counters; admins must specify department_id."""
-    # Validate the department before the legacy maintenance command can write.
-    # head_dashboard repeats the authorization so direct query callers stay scoped.
     scoped_department(db, actor, department_id)
-    refresh_expired_applications(db)
     return head_dashboard(db, actor, department_id)
 
 

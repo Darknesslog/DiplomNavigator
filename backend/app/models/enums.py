@@ -110,6 +110,7 @@ class NotificationKind(StrEnum):
 
     APPLICATION_APPROVED = "application_approved"
     APPLICATION_REJECTED = "application_rejected"
+    APPLICATION_EXPIRED = "application_expired"
     TOPIC_DELETION_APPROVED = "topic_deletion_approved"
     TOPIC_DELETION_REJECTED = "topic_deletion_rejected"
     ASSIGNMENT_PROGRESS_UPDATED = "assignment_progress_updated"

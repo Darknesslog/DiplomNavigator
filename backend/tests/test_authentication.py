@@ -325,9 +325,9 @@ def test_department_boundaries_and_admin_transfer(client, bearer):
         client.patch("/users/3/department", json={"department_id": 1}, headers=head).status_code
         == 200
     )
-    response = client.patch("/users/3/department", json={"department_id": 2}, headers=bearer(1))
+    response = client.patch("/users/5/department", json={"department_id": 1}, headers=bearer(1))
     assert response.status_code == 200
-    assert response.json()["department_id"] == 2
+    assert response.json()["department_id"] == 1
 
 
 def test_head_cannot_modify_elevated_accounts(client, bearer):

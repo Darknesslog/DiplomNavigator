@@ -1,6 +1,6 @@
 """Supervisor workflow: applications, assignments, and progress."""
 
-from datetime import UTC, datetime, timedelta
+from datetime import timedelta
 
 from fastapi import HTTPException
 from sqlalchemy import select
@@ -16,18 +16,20 @@ from backend.app.models import (
     Topic,
     TopicStatus,
     User,
+    UserRole,
 )
 from backend.app.models.enums import NotificationKind
 from backend.app.schemas.supervisor import ApplicationDecision
-from backend.app.services.application import expire_overdue_applications
+from backend.app.services.application import expire_locked_application
 from backend.app.services.assignment_records import new_assignment
 from backend.app.services.profiles import require_supervisor_profile
 from backend.app.services.workflow import (
+    check_locked_assignment_capacity,
     check_workflow_scope,
     commit_workflow,
-    lock_assignment_capacity,
-    lock_student,
+    lock_workflow_rows,
     withdraw_other_applications,
+    workflow_now,
 )
 
 
@@ -40,8 +42,6 @@ def supervisor_applications(
 ) -> list[Application]:
     """List applications for topics owned by the current supervisor."""
     teacher = require_supervisor_profile(actor)
-    if expire_overdue_applications(db):
-        db.commit()
     statement = (
         select(Application)
         .join(Application.topic)
@@ -58,32 +58,6 @@ def supervisor_applications(
     return list(db.scalars(statement.offset(offset).limit(limit)))
 
 
-def locked_pending_application(
-    db: Session, actor: User, application_id: int
-) -> tuple[Application, Topic]:
-    """Acquire student/application/topic locks and validate ownership before a decision."""
-    student_id = db.scalar(select(Application.student_id).where(Application.id == application_id))
-    if student_id is None:
-        raise HTTPException(status_code=404, detail="Application not found")
-    lock_student(db, student_id)
-    application = db.scalar(
-        select(Application)
-        .where(Application.id == application_id)
-        .with_for_update()
-        .execution_options(populate_existing=True)
-    )
-    if application is None:
-        raise HTTPException(status_code=404, detail="Application not found")
-    topic = db.scalar(select(Topic).where(Topic.id == application.topic_id).with_for_update())
-    if topic is None:
-        raise HTTPException(status_code=404, detail="Topic not found")
-    check_workflow_scope(actor, topic)
-    if application.status != ApplicationStatus.PENDING:
-        raise HTTPException(status_code=409, detail="Application has already been decided")
-
-    return application, topic
-
-
 def decide_application(
     db: Session,
     actor: User,
@@ -93,15 +67,34 @@ def decide_application(
     approve: bool,
 ) -> Application:
     """Approve or reject one pending application atomically."""
-    if expire_overdue_applications(db):
-        db.commit()
-    application, topic = locked_pending_application(db, actor, application_id)
-
-    now = datetime.now(UTC)
+    reference = db.execute(
+        select(Application.student_id, Application.topic_id).where(Application.id == application_id)
+    ).one_or_none()
+    if reference is None:
+        raise HTTPException(status_code=404, detail="Application not found")
+    rows = lock_workflow_rows(
+        db, actor, reference.student_id, reference.topic_id, application_id=application_id
+    )
+    if actor.role not in (UserRole.NAUCHRUK, UserRole.ZAVKAF, UserRole.ADMIN):
+        raise HTTPException(status_code=403, detail="Decision role is required")
+    application = next((row for row in rows.applications if row.id == application_id), None)
+    if application is None or application.topic_id != rows.topic.id:
+        raise HTTPException(status_code=409, detail="Application participants changed")
+    topic = rows.topic
+    check_workflow_scope(actor, topic)
+    # All parents AND other applications are locked before the final state/time read.
+    db.refresh(application, attribute_names=["status", "expires_at"], with_for_update=True)
+    now = workflow_now(db)
+    if expire_locked_application(db, application, now):
+        # This is a successful expiration command even though the requested decision conflicts.
+        commit_workflow(db)
+        raise HTTPException(status_code=409, detail="Application has expired")
+    if application.status != ApplicationStatus.PENDING:
+        raise HTTPException(status_code=409, detail="Application has already been decided")
     if approve:
         if topic.status != TopicStatus.PUBLISHED:
             raise HTTPException(status_code=409, detail="Only published topics can be assigned")
-        locked_teacher = lock_assignment_capacity(db, topic, application.student_id)
+        locked_teacher = check_locked_assignment_capacity(db, rows)
         assignment = new_assignment(
             application.student_id,
             application.topic_id,
@@ -113,7 +106,7 @@ def decide_application(
         db.add(assignment)
         application.status = ApplicationStatus.APPROVED
         withdraw_other_applications(
-            db, application.student_id, actor.id, now, keep_application_id=application.id
+            rows.applications, actor.id, now, keep_application_id=application.id
         )
     else:
         application.status = ApplicationStatus.REJECTED
