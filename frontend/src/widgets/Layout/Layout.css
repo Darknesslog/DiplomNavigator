@@ -147,3 +147,28 @@
 .sup-avatar {display:grid;place-items:center;width:40px;height:40px;border-radius:50%;background:#e6effb;color:#176bd7;font-weight:700;}
 .sup-content {padding:32px;max-width:1600px;margin:auto;}
 @media(max-width:700px){.sup-shell,.sup-shell.sup-collapsed{grid-template-columns:60px minmax(0,1fr)}.sup-sidebar nav button{font-size:0;padding:16px 12px;gap:0}.sup-brand strong,.sup-controls{display:none}.sup-brand{padding:20px 12px}.sup-content{padding:16px}.sup-header{padding:0 16px}}
+
+/* Keep sidebar dimensions proportional to the selected text size. */
+.sup-shell[data-font]:not(.sup-collapsed) {
+  grid-template-columns: calc(var(--sx-sidebar, 240px) * var(--sx-scale, 1)) minmax(0, 1fr);
+}
+
+.sup-shell[data-font].sup-collapsed {
+  grid-template-columns: calc(68px * var(--sx-scale, 1)) minmax(0, 1fr);
+}
+
+.sup-shell .sup-brand strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.sup-shell .sup-controls button svg {
+  flex-shrink: 0;
+}
+
+@media (max-width: 900px) {
+  .sup-shell[data-font]:not(.sup-collapsed),
+  .sup-shell[data-font].sup-collapsed {
+    grid-template-columns: calc(68px * var(--sx-scale, 1)) minmax(0, 1fr);
+  }
+}

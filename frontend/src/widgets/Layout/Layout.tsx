@@ -44,7 +44,12 @@ export const Layout: React.FC<LayoutProps> = ({
         <div className="sup-controls"><button title={collapsed ? 'Развернуть' : 'Свернуть'} aria-expanded={!collapsed} onClick={() => setCollapsed(v => !v)}><PanelLeftClose size={15} />{!collapsed && 'Свернуть'}</button>{!collapsed && <button aria-pressed={pinned} onClick={() => setPinned(v => !v)}><Pin size={15} />{pinned ? 'Открепить' : 'Закрепить'}</button>}</div>
         <nav>{items.map(({ key, label, Icon, ready }) => <button key={key} title={ready ? label : `${label} — в разработке`} disabled={!ready} className={activeTab === key ? 'active' : ''} onClick={() => onTabChange?.(key)}><Icon size={23} />{!collapsed && label}{key === 'notifications' && unreadCount > 0 && <span className="sx-count">{unreadCount}</span>}</button>)}</nav>
       </aside>
-      <div className="sup-main"><header className="sup-header"><strong className="sx-page-title">{items.find(i => i.key === activeTab)?.label}</strong><SupervisorProfileMenu onLogout={onLogout} /></header><main className="sup-content">{children}</main></div>
+      <div className="sup-main">
+        <header className="sup-header">
+          <SupervisorProfileMenu onLogout={onLogout} />
+        </header>
+        <main className="sup-content">{children}</main>
+      </div>
     </div>;
   }
   return (

@@ -1,0 +1,72 @@
+.st-page .st-work-topic {
+  border-left: 6px solid var(--sx-action);
+  padding: 32px;
+}
+.st-work-topic h2 {
+  margin: 12px 0 24px;
+}
+.st-meta {
+  display: flex;
+  gap: 30px;
+  flex-wrap: wrap;
+}
+.st-work-topic .st-meta {
+  border-top: 1px solid var(--sx-border);
+  padding-top: 24px;
+}
+.st-meta > .st-meta-item {
+  display: grid;
+  gap: 8px;
+  color: var(--sx-muted);
+  font-size: .9em;
+}
+.st-meta > .st-meta-item > strong {
+  font-weight: 500;
+  color: var(--sx-text);
+}
+.st-two {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin: 28px 0 34px;
+}
+.st-two .st-card {
+  min-height: 230px;
+  padding: 28px;
+}
+.st-progress {
+  display: flex;
+  flex-direction: column;
+}
+.st-progress p {
+  color: var(--sx-muted);
+  margin-bottom: 8px;
+}
+.st-progress-track {
+  height: 22px;
+  background: #e9edf2;
+  border-radius: 20px;
+  overflow: hidden;
+}
+.st-progress-track div {
+  height: 100%;
+  background: var(--sx-action);
+  border-radius: 20px;
+}
+.st-progress .st-green {
+  margin-top: auto;
+  padding-top: 32px;
+}
+.st-between {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: start;
+}
+
+.st-meta > .st-meta-item > .st-blue {
+  color: var(--sx-blue);
+}
+.st-meta > .st-meta-item {
+  align-content: start;
+}

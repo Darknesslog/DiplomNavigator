@@ -1,11 +1,10 @@
+import { StudentApp } from '../pages/student/StudentApp';
 import { readAppearance, saveAppearance } from '../shared/api/supervisorAppearance';
 // src/app/App.tsx
 import React, { useEffect, useState } from 'react';
 import { LoginPage } from '../pages/login/LoginPage';
 import { SupervisorStudentsPage } from '../pages/supervisor/SupervisorStudentsPage';
 import { Layout } from '../widgets/Layout/Layout';
-import { TopicsCatalogPage } from '../pages/catalog/TopicsCatalogPage';
-import { MyWorkPage } from '../pages/my-work/MyWorkPage';
 import { SupervisorDashboardPage } from '../pages/supervisor/SupervisorDashboardPage';
 import { SupervisorTopicsPage } from '../pages/supervisor/SupervisorTopicsPage';
 import { SupervisorReportsPage } from '../pages/supervisor/SupervisorReportsPage';
@@ -25,7 +24,6 @@ export const App: React.FC = () => {
   const [studentOrigin, setStudentOrigin] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState<string>('login');
   const [userRole, setUserRole] = useState<'student' | 'nauchruk' | 'zavkaf'>('student');
-  const [appliedTopicId, setAppliedTopicId] = useState<number | null>(null);
 
   useEffect(() => { if (userRole !== 'nauchruk') return; let active = true; setNotificationError(''); fetchSupervisorNotifications().then(v => { if (active) setNotifications(v) }).catch(() => { if (active) setNotificationError('Не удалось загрузить уведомления') }); return () => { active = false } }, [userRole]);
   useEffect(() => { saveAppearance(appearance); }, [appearance]);
@@ -47,17 +45,11 @@ export const App: React.FC = () => {
     setStudentOrigin(null);
   };
 
-  const handleApply = (topicId: number) => {
-    setAppliedTopicId(topicId);
-    alert(`Заявка на тему #${topicId} отправлена (демо).`);
-  };
-
   const handleLogout = () => {
     setUserRole('student');
     setNotifications([]);
     setNotificationError('');
     setCurrentPage('login');
-    setAppliedTopicId(null);
     setStudentId(null);
     setStudentOrigin(null);
     setTopicId(null);
@@ -66,6 +58,8 @@ export const App: React.FC = () => {
   if (currentPage === 'login') {
     return <LoginPage onLoginSuccess={handleLogin} />;
   }
+
+  if (userRole === 'student') return <StudentApp page={currentPage} navigate={setCurrentPage} appearance={appearance} onAppearance={setAppearance} onLogout={handleLogout} />;
 
   return (
     <Layout
@@ -77,12 +71,6 @@ export const App: React.FC = () => {
       userName={userRole === 'zavkaf' ? 'Елена Петрова' : userRole === 'nauchruk' ? '' : 'Алексей Иванов'}
       onLogout={handleLogout}
     >
-      {/* Студент */}
-      {userRole === 'student' && currentPage === 'catalog' && (
-        <TopicsCatalogPage appliedTopicId={appliedTopicId} onApply={handleApply} />
-      )}
-      {userRole === 'student' && currentPage === 'my-work' && <MyWorkPage />}
-
       {/* Keep the origin mounted during a student visit to retain local state. */}
       {userRole === 'nauchruk' && <>
         {(['dashboard', 'applications', 'students', 'reports', 'notifications', 'help', 'settings'] as const).map(page => {

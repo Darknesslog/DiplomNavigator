@@ -1,0 +1,35 @@
+.st-filters {
+  display: grid;
+  grid-template-columns: repeat(3,minmax(0,1fr)) auto;
+  gap: 20px;
+  align-items: end;
+  margin: 28px 0;
+}
+.st-topic-grid {
+  display: grid;
+  grid-template-columns: repeat(3,minmax(0,1fr));
+  gap: 20px;
+}
+.st-topic {
+  display: flex;
+  flex-direction: column;
+  min-height: 340px;
+  gap: 12px;
+}
+.st-topic h3 {
+  line-height: 1.35;
+  min-height: 4em;
+}
+.st-topic dl dt:last-of-type,.st-topic dl dd:last-of-type {
+  margin-top: 24px;
+}
+.st-topic footer {
+  margin-top: auto;
+  border-top: 1px solid var(--sx-border);
+  padding-top: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}

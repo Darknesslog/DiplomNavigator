@@ -1,0 +1,64 @@
+.st-contact {
+  margin-bottom: 28px;
+}
+.st-contact div {
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  gap: 20px;
+  padding: 16px;
+  border-bottom: 1px solid var(--sx-border);
+  color: var(--sx-muted);
+}
+.st-contact div:last-child {
+  border: 0;
+}
+.st-help {
+  display: flex;
+  flex-direction: column;
+  align-items: start;
+  gap: 10px;
+}
+.st-help>svg {
+  color: var(--sx-blue);
+  background: var(--sx-selected);
+  padding: 8px;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+}
+.st-help h3,.st-help p {
+  margin: 0;
+}
+.st-help p {
+  color: var(--sx-muted);
+  font-size: .9em;
+}
+.st-help button {
+  margin-top: auto;
+  padding-top: 12px;
+}
+.st-topic-grid+h3 {
+  margin-top: 28px;
+}
+.st-steps p {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+}
+.st-steps p:last-child {
+  margin: 0;
+}
+.st-steps b {
+  background: var(--sx-action);
+  color: white;
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+.st-support-button {
+  width: auto;
+  margin-top: 32px;
+}

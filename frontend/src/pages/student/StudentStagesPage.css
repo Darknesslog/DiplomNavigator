@@ -1,0 +1,110 @@
+.st-stage-grid {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  gap: 24px;
+  margin-top: 28px;
+  align-items: start;
+}
+.st-stage-list {
+  position: relative;
+  display: grid;
+  gap: 14px;
+}
+.st-stage-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) auto auto;
+  gap: 12px;
+  text-align: left;
+  color: var(--sx-text);
+  align-items: center;
+  width: 100%;
+}
+.st-stage-row.selected {
+  border: 2px solid var(--sx-blue);
+}
+.st-stage-row p {
+  margin: 8px 0 0;
+  color: var(--sx-muted);
+}
+.st-stage-detail h2 {
+  border-bottom: 1px solid var(--sx-border);
+  padding-bottom: 20px;
+}
+.st-stage-detail h3 {
+  margin-top: 8px;
+}
+.st-stage-detail .st-meta {
+  margin: 24px 0;
+}
+.st-stage-detail p {
+  margin: 8px 0 24px;
+}
+.st-stage-detail .st-empty {
+  background: var(--sx-bg);
+  border: 1px dashed var(--sx-border);
+  border-radius: 8px;
+  margin-top: 12px;
+}
+.st-page>.st-link {
+  margin-bottom: 28px;
+}
+
+.st-stage-list::after {
+  content: '';
+  position: absolute;
+  left: 42px;
+  top: 42px;
+  bottom: 42px;
+  width: 2px;
+  background: var(--sx-border);
+  pointer-events: none;
+}
+.st-stage-marker {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--sx-bg);
+  z-index: 1;
+}
+.st-stage-marker.st-current {
+  background: var(--sx-action);
+  color: white;
+}
+.st-stage-marker.st-done {
+  background: #e7faf1;
+}
+.st-stage-marker.st-waiting {
+  background: #fff7e5;
+}
+.st-stage-summary {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr) auto;
+}
+.st-stage-summary > .st-meta-item:last-child {
+  text-align: right;
+}
+.st-stage-summary > .st-meta-item:nth-child(2) > strong,
+.st-stage-summary > .st-meta-item:last-child > strong {
+  color: var(--sx-blue);
+}
+.st-stage-detail .st-overdue {
+  color: #c91d24;
+}
+.st-page > button.st-link {
+  display: inline-flex;
+  margin-bottom: 28px;
+}
+@media (max-width: 750px) {
+  .st-stage-summary {
+    grid-template-columns: 1fr 1fr;
+  }
+  .st-stage-list .st-stage-row {
+    grid-template-columns: 36px minmax(0, 1fr) auto;
+  }
+  .st-stage-list .st-stage-row .st-badge {
+    grid-column: 2;
+  }
+}
