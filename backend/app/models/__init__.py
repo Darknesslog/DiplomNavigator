@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from backend.app.models.accounts import Student, Teacher, User
 from backend.app.models.base import Base, IdMixin, TimestampMixin
+from backend.app.models.department_history import DepartmentChangeHistory
 from backend.app.models.enums import (
     ApplicationStatus,
     AssignmentStage,
@@ -43,6 +44,7 @@ __all__ = [
     "Attachment",
     "Base",
     "Department",
+    "DepartmentChangeHistory",
     "Faculty",
     "IdMixin",
     "Notification",

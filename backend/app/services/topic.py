@@ -19,7 +19,9 @@ from backend.app.models import (
 )
 from backend.app.schemas.topic import TopicCreate, TopicStatusUpdate
 from backend.app.services.accounts import department_id, require_department
-from backend.app.services.application import expire_overdue_applications, student_topic_query
+from backend.app.services.application import student_topic_query
+from backend.app.services.lifecycle_guards import check_topic_closure
+from backend.app.services.locking import lock_participants, lock_topic
 
 
 def require_period(db: Session, period_id: int) -> AcademicPeriod:
@@ -85,6 +87,11 @@ def create_topic(db: Session, data: TopicCreate, actor: User) -> Topic:
     require_period(db, data.period_id)
 
     supervisor_id = topic_supervisor_id(actor, data)
+    lock_participants(
+        db, actor,
+        student_ids=[data.proposed_by_student_id] if data.proposed_by_student_id else [],
+        teacher_ids=[supervisor_id],
+    )
     supervisor = require_teacher(db, supervisor_id)
     topic_department_id = data.department_id or supervisor.department_id
     if topic_department_id != supervisor.department_id:
@@ -137,8 +144,6 @@ def topic_query(actor: User, *, status_filter: TopicStatus | None = None) -> Sel
 
 def get_topic(db: Session, actor: User, topic_id: int) -> Topic:
     """Load a topic only when it is visible to the caller."""
-    if expire_overdue_applications(db):
-        db.commit()
     statement = student_topic_query(actor) if actor.role == UserRole.STUDENT else topic_query(actor)
     topic = db.scalar(statement.where(Topic.id == topic_id))
     if topic is None:
@@ -176,9 +181,8 @@ def list_visible_topics(
 
 def moderate_topic(db: Session, actor: User, topic_id: int, data: TopicStatusUpdate) -> Topic:
     """Publish, reject, or archive a topic inside the moderator's department."""
-    topic = db.get(Topic, topic_id)
-    if topic is None:
-        raise HTTPException(status_code=404, detail="Topic not found")
+    lock_participants(db, actor)
+    topic = lock_topic(db, topic_id)
     check_topic_scope(actor, topic)
     if actor.role not in (UserRole.ADMIN, UserRole.ZAVKAF):
         raise HTTPException(status_code=403, detail="Only department heads may moderate topics")
@@ -186,6 +190,8 @@ def moderate_topic(db: Session, actor: User, topic_id: int, data: TopicStatusUpd
         raise HTTPException(status_code=422, detail="A topic cannot be returned to draft")
     if topic.status == TopicStatus.ARCHIVED:
         raise HTTPException(status_code=409, detail="Archived topics cannot be moderated")
+    if data.status in (TopicStatus.ARCHIVED, TopicStatus.REJECTED):
+        check_topic_closure(db, topic.id)
     topic.status = data.status
     topic.published_at = datetime.now(UTC) if data.status == TopicStatus.PUBLISHED else None
     if data.status == TopicStatus.ARCHIVED:

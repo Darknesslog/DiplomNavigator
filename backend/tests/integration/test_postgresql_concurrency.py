@@ -223,7 +223,7 @@ def test_conflict_helper_rolls_back_pending_side_effects(sessions):
 
 def test_migrated_database_has_expected_partial_indexes(sessions):
     with sessions() as db:
-        assert db.scalar(text("SELECT version_num FROM alembic_version")) == "d8f3a4b5c6d7"
+        assert db.scalar(text("SELECT version_num FROM alembic_version")) == "e9a4b5c6d7e8"
         history_columns = inspect(db.get_bind()).get_columns("assignment_progress_history")
         assert next(column for column in history_columns if column["name"] == "id")["identity"]
         definitions = dict(

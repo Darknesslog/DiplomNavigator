@@ -13,10 +13,7 @@ from backend.app.schemas.management import (
     TopicDeletionRequestResponse,
 )
 from backend.app.schemas.topic import TopicCreate, TopicResponse, TopicStatusUpdate
-from backend.app.services.application import (
-    create_application,
-    expire_overdue_applications,
-)
+from backend.app.services.application import create_application
 from backend.app.services.topic import (
     create_topic,
     get_topic,
@@ -59,8 +56,6 @@ def list_topics(
     limit: Annotated[int, Query(ge=1, le=100)] = 50,
 ) -> list[TopicResponse]:
     """List only topics visible to the authenticated role."""
-    if expire_overdue_applications(db):
-        db.commit()
     return list_visible_topics(
         db, actor, topic_status, period_id, department_id, supervisor_id, offset, limit
     )

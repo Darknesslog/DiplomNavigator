@@ -66,6 +66,14 @@ erDiagram
         datetime created_at
         datetime updated_at
     }
+    department_change_history {
+        biginteger id PK
+        biginteger user_id FK
+        biginteger changed_by_user_id FK
+        datetime changed_at
+        biginteger old_department_id FK
+        biginteger new_department_id FK
+    }
     students {
         biginteger id PK
         biginteger user_id FK
@@ -181,6 +189,10 @@ erDiagram
     faculties ||--o{ departments : "faculty_id"
     users ||--o{ notifications : "user_id"
     faculties ||--o{ study_groups : "faculty_id"
+    users ||--o{ department_change_history : "user_id"
+    users ||--o{ department_change_history : "changed_by_user_id"
+    departments |o--o{ department_change_history : "old_department_id"
+    departments ||--o{ department_change_history : "new_department_id"
     users ||--o{ students : "user_id"
     study_groups ||--o{ students : "group_id"
     departments |o--o{ students : "department_id"

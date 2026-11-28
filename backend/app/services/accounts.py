@@ -85,6 +85,9 @@ def commit_account(db: Session, user: User) -> UserResponse:
         raise HTTPException(
             status_code=409, detail="Account or profile conflicts with existing data"
         ) from None
+    except Exception:
+        db.rollback()
+        raise
     return public_user(user)
 
 

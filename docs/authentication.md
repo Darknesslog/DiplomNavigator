@@ -49,10 +49,13 @@ Student groups and departments must belong to the same faculty. Existing student
 a nullable department link because faculty alone does not identify their department; admins
 must assign it explicitly. Unassigned students see an empty supervisor list.
 
-Current limitation (reviewed 2026-11-18): department changes do not check pending
-applications, owned topics or active assignments. An administrator can therefore move
-a profile while retaining links to the former department. The planned MVP guard is not
-implemented. See R01 in the [backend review](backend-review-appts.md).
+Department transfers reject pending applications (including overdue rows until processed),
+active assignments, and unclosed topics owned by a supervisor or proposed by a student.
+Checks use retained domain profiles even after a role change. An authorized request for
+the current department returns 200 without changing the profile or creating an audit row.
+An actual change and its audit are committed together; historical workflow rows keep their
+original department links. See the [transfer and moderation contract](topic-department-contract.md)
+for stable 409 reasons, priority, lock order and concurrency checks.
 
 ## Login policy
 

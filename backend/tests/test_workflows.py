@@ -5,6 +5,7 @@ from sqlalchemy import select
 
 from backend.app.models import (
     Application,
+    ApplicationStatus,
     Assignment,
     Notification,
     Student,
@@ -257,7 +258,10 @@ def test_supervisor_requests_topic_deletion_and_head_rejects(client, bearer, ses
         assert request.status == TopicDeletionRequestStatus.REJECTED
 
 
-def test_head_approves_topic_deletion_and_archives_topic(client, bearer):
+def test_head_approves_topic_deletion_and_archives_topic(client, bearer, sessions):
+    with sessions() as db:
+        db.get(Application, 1).status = ApplicationStatus.WITHDRAWN
+        db.commit()
     response = client.post(
         "/topics/1/deletion-requests",
         json={"reason": "Тема больше не нужна."},

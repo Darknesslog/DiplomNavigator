@@ -22,6 +22,7 @@ from backend.app.models import (
     UserRole,
 )
 from backend.app.models.enums import PeriodStatus
+from backend.app.services.application import expire_overdue_applications
 
 
 def approve(client, bearer):
@@ -219,7 +220,11 @@ def test_expiration_is_persisted_even_when_decision_fails(client, bearer, sessio
     if trigger == "list":
         response = client.get("/topics", headers=bearer(3))
         assert response.status_code == 200
-        assert all(row["id"] != 1 for row in response.json())
+        assert any(row["id"] == 1 for row in response.json())
+        with sessions() as db:
+            assert db.get(Application, 1).status == ApplicationStatus.PENDING
+            assert expire_overdue_applications(db) == 1
+            db.commit()
     else:
         response = client.patch("/reservations/1/approve", json={}, headers=bearer(4))
         assert response.status_code == 409
@@ -227,7 +232,7 @@ def test_expiration_is_persisted_even_when_decision_fails(client, bearer, sessio
         application = db.get(Application, 1)
         assert application.status == ApplicationStatus.EXPIRED
         assert application.history[-1].to_status == ApplicationStatus.EXPIRED
-        assert db.get(Topic, 1).status == TopicStatus.ARCHIVED
+        assert db.get(Topic, 1).status == TopicStatus.PUBLISHED
         assert db.scalar(select(func.count()).select_from(Assignment)) == 0
 
 

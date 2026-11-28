@@ -4,7 +4,7 @@ from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
-from backend.app.models import Department, Student, Teacher, User, UserRole
+from backend.app.models import Department, DepartmentChangeHistory, Student, Teacher, User, UserRole
 from backend.app.schemas.accounts import (
     AccountCreate,
     DepartmentResponse,
@@ -24,6 +24,9 @@ from backend.app.services.accounts import (
     public_user,
     require_department,
 )
+from backend.app.services.lifecycle_guards import check_department_transfer
+from backend.app.services.locking import lock_participants
+from backend.app.services.workflow import workflow_now
 
 
 def new_user(data: AccountCreate, role: UserRole) -> User:
@@ -160,9 +163,25 @@ def assign_department(
     actor: User,
 ) -> UserResponse:
     """Assign a profile's department; only admins may transfer between departments."""
-    target = managed_target(db, user_id, actor)
+    target = db.get(User, user_id)
+    if target is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    lock_participants(
+        db,
+        actor,
+        student_ids=[target.student.id] if target.student is not None else [],
+        teacher_ids=[target.teacher.id] if target.teacher is not None else [],
+        exclusive_user_ids=[target.id],
+    )
+    check_department_scope(actor, department_id(target))
+    if actor.role != UserRole.ADMIN and target.role not in (UserRole.STUDENT, UserRole.NAUCHRUK):
+        raise HTTPException(status_code=403, detail="Only admins may manage elevated accounts")
     check_department_scope(actor, data.department_id)
+    old_department_id = department_id(target)
+    if old_department_id == data.department_id:
+        return public_user(target)
     department = require_department(db, data.department_id)
+    check_department_transfer(db, target.student, target.teacher)
     if target.student is not None:
         check_student_faculty(db, target.student.group_id, department)
         target.student.department_id = data.department_id
@@ -170,6 +189,15 @@ def assign_department(
         target.teacher.department_id = data.department_id
     else:
         raise HTTPException(status_code=409, detail="User has no student or supervisor profile")
+    db.add(
+        DepartmentChangeHistory(
+            user_id=target.id,
+            changed_by_user_id=actor.id,
+            changed_at=workflow_now(db),
+            old_department_id=old_department_id,
+            new_department_id=data.department_id,
+        )
+    )
     return commit_account(db, target)
 
 

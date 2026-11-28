@@ -1,6 +1,7 @@
 """Shared transaction rules for supervisor decisions and department overrides."""
 
-from datetime import datetime
+from dataclasses import dataclass
+from datetime import UTC, datetime
 
 from fastapi import HTTPException
 from sqlalchemy import func, select
@@ -8,6 +9,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from backend.app.models import (
+    AcademicPeriod,
     Application,
     ApplicationStatus,
     ApplicationStatusHistory,
@@ -19,6 +21,90 @@ from backend.app.models import (
     User,
     UserRole,
 )
+from backend.app.services.locking import lock_participants, lock_student_applications, lock_topic
+
+
+def workflow_now(db: Session) -> datetime:
+    """Read wall-clock time, never PostgreSQL's transaction-start timestamp."""
+    if db.get_bind().dialect.name == "postgresql":
+        return db.scalar(select(func.clock_timestamp()))
+    return datetime.now(UTC)
+
+
+def as_utc(value: datetime) -> datetime:
+    """SQLite returns naive timestamps; PostgreSQL timestamps are timezone aware."""
+    return value.replace(tzinfo=UTC) if value.tzinfo is None else value.astimezone(UTC)
+
+
+@dataclass
+class WorkflowRows:
+    student: Student
+    teacher: Teacher | None
+    period: AcademicPeriod
+    topic: Topic
+    applications: list[Application]
+
+
+def lock_workflow_rows(
+    db: Session,
+    actor: User,
+    student_id: int,
+    topic_id: int,
+    *,
+    application_id: int | None = None,
+) -> WorkflowRows:
+    """Lock U -> S -> H -> P -> T -> all student's A, sorted within each level.
+
+    Discovery takes no locks. If a relationship changed before its lock, restart
+    from U rather than acquire a previously skipped parent after a child.
+    """
+    for _attempt in range(3):
+        student_owner = db.scalar(select(Student.user_id).where(Student.id == student_id))
+        if student_owner is None:
+            raise HTTPException(status_code=404, detail="Student not found")
+        discovered = db.execute(
+            select(Topic.supervisor_id, Topic.period_id).where(Topic.id == topic_id)
+        ).one_or_none()
+        if discovered is None:
+            raise HTTPException(status_code=404, detail="Topic not found")
+        supervisor_id, period_id = discovered
+        actor_teacher_id = db.scalar(select(Teacher.id).where(Teacher.user_id == actor.id))
+        teacher_ids = {supervisor_id}
+        if actor_teacher_id is not None:
+            teacher_ids.add(actor_teacher_id)
+        teacher_owners = dict(
+            db.execute(select(Teacher.id, Teacher.user_id).where(Teacher.id.in_(teacher_ids))).all()
+        )
+        lock_participants(db, actor, student_ids=[student_id], teacher_ids=teacher_ids)
+        student = db.get(Student, student_id)
+        teachers = [db.get(Teacher, identity) for identity in sorted(teacher_owners)]
+        period = db.scalar(
+            select(AcademicPeriod)
+            .where(AcademicPeriod.id == period_id)
+            .with_for_update(read=True)
+            .execution_options(populate_existing=True)
+        )
+        topic = lock_topic(db, topic_id)
+        if (
+            topic is None
+            or topic.supervisor_id != supervisor_id
+            or topic.period_id != period_id
+            or student.user_id != student_owner
+            or any(teacher.user_id != teacher_owners[teacher.id] for teacher in teachers)
+        ):
+            db.rollback()
+            continue
+        if period is None:
+            raise HTTPException(status_code=409, detail="Academic period not found")
+        applications = lock_student_applications(db, student_id, application_id=application_id)
+        return WorkflowRows(
+            student,
+            next((row for row in teachers if row.id == supervisor_id), None),
+            period,
+            topic,
+            applications,
+        )
+    raise HTTPException(status_code=409, detail="Workflow participants changed; retry command")
 
 
 def check_workflow_scope(actor: User, topic: Topic) -> None:
@@ -34,38 +120,21 @@ def check_workflow_scope(actor: User, topic: Topic) -> None:
     raise HTTPException(status_code=403, detail="Topic is outside your scope")
 
 
-def lock_student(db: Session, student_id: int) -> Student:
-    """Lock the student before topics/applications to serialize their commands."""
-    student = db.scalar(
-        select(Student)
-        .where(Student.id == student_id)
-        .with_for_update()
-        .execution_options(populate_existing=True)
-    )
-    if student is None:
-        raise HTTPException(status_code=404, detail="Student not found")
-    return student
-
-
 def withdraw_other_applications(
-    db: Session,
-    student_id: int,
+    applications: list[Application],
     actor_id: int,
     now: datetime,
     *,
     keep_application_id: int | None = None,
 ) -> None:
-    """Release other reservations under the student's lock; caller commits atomically."""
-    statement = select(Application).where(
-        Application.student_id == student_id, Application.status == ApplicationStatus.PENDING
-    )
-    if keep_application_id is not None:
-        statement = statement.where(Application.id != keep_application_id)
-    for application in db.scalars(
-        statement.order_by(Application.id)
-        .with_for_update()
-        .execution_options(populate_existing=True)
-    ):
+    """Withdraw the already locked group; no new locks after the final time check.
+
+    Other pending rows are withdrawn even if overdue: only a separately completed
+    expiration command takes precedence over this assignment transition.
+    """
+    for application in applications:
+        if application.id == keep_application_id or application.status != ApplicationStatus.PENDING:
+            continue
         application.status = ApplicationStatus.WITHDRAWN
         application.cooldown_until = None
         application.decided_at = now
@@ -129,19 +198,10 @@ def check_assignment_availability(db: Session, student_id: int, topic_id: int) -
         raise HTTPException(status_code=409, detail="Topic already has an assignment")
 
 
-def lock_assignment_capacity(db: Session, topic: Topic, student_id: int) -> Teacher:
-    """Check capacity with student and topic already locked by the caller."""
-    student = lock_student(db, student_id)
-    teacher = require_available_supervisor(
-        db.scalar(
-            select(Teacher)
-            .where(Teacher.id == topic.supervisor_id)
-            .with_for_update()
-            # Refresh the identity map only after the row lock has been acquired.
-            .execution_options(populate_existing=True)
-        )
-    )
-    check_assignment_student(student, topic)
+def check_locked_assignment_capacity(db: Session, rows: WorkflowRows) -> Teacher:
+    """Validate using already locked parents; never go back from A/T to S/H."""
+    teacher = require_available_supervisor(rows.teacher)
+    check_assignment_student(rows.student, rows.topic)
     load = (
         db.scalar(
             select(func.count(Assignment.id)).where(
@@ -152,7 +212,7 @@ def lock_assignment_capacity(db: Session, topic: Topic, student_id: int) -> Teac
     )
     if load >= teacher.max_students:
         raise HTTPException(status_code=409, detail="Supervisor student limit reached")
-    check_assignment_availability(db, student.id, topic.id)
+    check_assignment_availability(db, rows.student.id, rows.topic.id)
     return teacher
 
 
