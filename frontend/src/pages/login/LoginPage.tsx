@@ -1,19 +1,34 @@
 // src/pages/login/LoginPage.tsx
 import React, { useState } from 'react';
+import { getMe, login, saveToken } from '../../shared/api/auth';
+import type { UserProfile } from '../../shared/api/auth';
 import './LoginPage.css';
 
 interface LoginPageProps {
-  onLoginSuccess: (role: 'student' | 'nauchruk' | 'zavkaf') => void;
+  onLoginSuccess: (profile: UserProfile) => void;
 }
 
 export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState<'student' | 'nauchruk' | 'zavkaf'>('student');
+  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onLoginSuccess(role);
+    setError('');
+    setIsLoading(true);
+
+    try {
+      const token = await login(email, password);
+      saveToken(token.access_token);
+      const profile = await getMe();
+      onLoginSuccess(profile);
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : 'Не удалось войти');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -52,21 +67,14 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
               />
             </div>
 
-            <div className="form-group">
-              <label className="form-label">Роль (для демо)</label>
-              <select
-                className="form-select"
-                value={role}
-                onChange={(e) => setRole(e.target.value as 'student' | 'nauchruk' | 'zavkaf')}
-              >
-                <option value="student">Студент</option>
-                <option value="nauchruk">Научный руководитель</option>
-                <option value="zavkaf">Заведующий кафедрой</option>
-              </select>
-            </div>
+            {error && (
+              <div className="form-error" role="alert">
+                {error}
+              </div>
+            )}
 
-            <button type="submit" className="btn-primary">
-              Войти
+            <button type="submit" className="btn-primary" disabled={isLoading}>
+              {isLoading ? 'Вход...' : 'Войти'}
             </button>
           </form>
         </div>

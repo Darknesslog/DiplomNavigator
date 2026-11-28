@@ -8,7 +8,7 @@ export const MyWorkPage: React.FC = () => {
   const [work, setWork] = useState<Work | null>(null);
 
   useEffect(() => {
-    fetchMyWork().then(setWork);
+    fetchMyWork().then((works) => setWork(works[0] || null));
   }, []);
 
   if (!work) {

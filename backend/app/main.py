@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from backend.app.api.accounts import router as accounts_router
 from backend.app.api.auth import router as auth_router
@@ -16,6 +17,17 @@ app = FastAPI(
     title="DiplomNavigator API",
     version="0.1.0",
     description="Сервис выбора и распределения тем выпускных работ",
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://127.0.0.1:5173",
+        "http://localhost:5173",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 

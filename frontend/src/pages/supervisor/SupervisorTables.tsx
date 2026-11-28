@@ -1,11 +1,7 @@
 import { useState } from "react";
 import type { ReactNode } from "react";
 import type { WorkStatus } from "../../entities/work/supervisorDashboard";
-export const statusLabels: Record<WorkStatus, string> = {
-  in_progress: "В работе",
-  review: "На проверке",
-  completed: "Завершено",
-};
+import { statusLabels } from "./supervisorStatus";
 export function Status({ status }: { status: WorkStatus }) {
   return (
     <span

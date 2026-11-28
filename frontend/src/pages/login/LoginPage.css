@@ -105,6 +105,15 @@
   background-color: var(--color-accent-yellow-hover);
 }
 
+.form-error {
+  padding: 10px 12px;
+  border: 1px solid #f3b4b4;
+  border-radius: 8px;
+  background: #fff2f2;
+  color: #9b2c2c;
+  font-size: 14px;
+}
+
 .login-footer {
   height: 60px;
   display: flex;

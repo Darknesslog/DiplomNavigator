@@ -9,6 +9,8 @@ export interface Topic {
   department_id: number | null;
   supervisor_id: number;
   company_name: string | null;
+  is_reserved?: boolean;
+  status_label?: string;
   // Для мока добавляем удобные поля, которых нет в API напрямую, 
   // но они нужны для UI (в реальном API они придут в вложенных объектах или отдельно)
   supervisor_name?: string;

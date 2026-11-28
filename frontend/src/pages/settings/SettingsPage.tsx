@@ -1,20 +1,19 @@
 // src/pages/settings/SettingsPage.tsx
 import React, { useEffect, useState } from 'react';
 import { fetchCurrentUser } from '../../shared/api/user';
-import type { CurrentUser } from '../../shared/mocks/user';
+import type { UserProfile } from '../../shared/api/auth';
 import './SettingsPage.css';
 
 interface SettingsPageProps {
   onLogout: () => void;
-  userRole: string;
 }
 
-export const SettingsPage: React.FC<SettingsPageProps> = ({ onLogout, userRole }) => {
-  const [user, setUser] = useState<CurrentUser | null>(null);
+export const SettingsPage: React.FC<SettingsPageProps> = ({ onLogout }) => {
+  const [user, setUser] = useState<UserProfile | null>(null);
 
   useEffect(() => {
-    fetchCurrentUser(userRole).then(setUser);
-  }, [userRole]);
+    fetchCurrentUser().then(setUser);
+  }, []);
 
   if (!user) {
     return <div>Загрузка...</div>;

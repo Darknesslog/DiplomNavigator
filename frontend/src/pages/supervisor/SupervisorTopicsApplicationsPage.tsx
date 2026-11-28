@@ -1,23 +1,29 @@
 // src/pages/supervisor/SupervisorTopicsApplicationsPage.tsx
-import React, { useEffect, useState } from "react";
-import { fetchApplications } from "../../shared/api/applications";
-import type { Application } from "../../entities/application/types";
-import "./SupervisorTopicsApplicationsPage.css";
+import React, { useEffect, useState } from 'react';
+import {
+  decideApplication,
+  fetchSupervisorApplications,
+} from '../../shared/api/applications';
+import type { Application } from '../../entities/application/types';
+import './SupervisorTopicsApplicationsPage.css';
 
 export const SupervisorTopicsApplicationsPage: React.FC = () => {
   const [apps, setApps] = useState<Application[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    fetchApplications()
+    fetchSupervisorApplications()
       .then(setApps)
       .finally(() => setIsLoading(false));
   }, []);
 
-  const handleDecision = (id: number, status: "approved" | "rejected") => {
-    setApps((prev) =>
-      prev.map((app) => (app.id === id ? { ...app, status } : app)),
-    );
+  const handleDecision = async (id: number, status: 'approved' | 'rejected') => {
+    try {
+      await decideApplication(id, status === 'approved');
+      setApps((prev) => prev.map((app) => (app.id === id ? { ...app, status } : app)));
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Не удалось принять решение');
+    }
   };
 
   if (isLoading) {

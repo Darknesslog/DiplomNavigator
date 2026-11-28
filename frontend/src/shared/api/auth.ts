@@ -14,6 +14,11 @@ export interface UserProfile {
   first_name: string;
   last_name: string;
   middle_name: string | null;
+  is_active: boolean;
+  department_id: number | null;
+  department_name: string | null;
+  student_id: number | null;
+  supervisor_id: number | null;
 }
 
 export const login = async (username: string, password: string): Promise<LoginResponse> => {
@@ -34,4 +39,12 @@ export const login = async (username: string, password: string): Promise<LoginRe
   return response.json();
 };
 
-export const getMe = (): Promise<UserProfile> => apiClient('/auth/me');
+export const getMe = (): Promise<UserProfile> => apiClient<UserProfile>('/auth/me');
+
+export const saveToken = (token: string): void => {
+  localStorage.setItem('access_token', token);
+};
+
+export const clearSession = (): void => {
+  localStorage.removeItem('access_token');
+};

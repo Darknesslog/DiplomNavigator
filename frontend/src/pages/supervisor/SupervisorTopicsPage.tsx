@@ -12,7 +12,8 @@ import type {
   TopicDirectories,
 } from "../../entities/topic/supervisorTopics";
 import type { DashboardStudent } from "../../entities/work/supervisorDashboard";
-import { DataTable, Filter, Status, statusLabels } from "./SupervisorTables";
+import { DataTable, Filter, Status } from "./SupervisorTables";
+import { statusLabels } from "./supervisorStatus";
 import type { Column } from "./SupervisorTables";
 import "./SupervisorDashboardPage.css";
 import "./SupervisorStudentsPage.css";

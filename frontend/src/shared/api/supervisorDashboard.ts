@@ -1,71 +1,116 @@
-import { toProgressRequest } from "./supervisorContracts";
-import { MOCK_SUPERVISOR_DASHBOARD } from "../mocks/supervisorDashboard";
+import { apiClient } from './client';
+import { toProgressRequest } from './supervisorContracts';
 import type {
-  SupervisorDashboard,
+  DashboardEvent,
+  DashboardStudent,
   StageChange,
-} from "../../entities/work/supervisorDashboard";
-let data = structuredClone(MOCK_SUPERVISOR_DASHBOARD);
-function snapshot(): SupervisorDashboard {
-  return structuredClone({
-    ...data,
-    attention: data.attention.filter((a) =>
-      data.students.some(
-        (s) =>
-          s.id === a.studentId && s.status !== "completed" && s.progress < 100,
-      ),
-    ),
-  });
+  StageOption,
+  SupervisorDashboard,
+  WorkStatus,
+} from '../../entities/work/supervisorDashboard';
+
+interface BackendProgressHistory {
+  changed_at: string;
+  current_stage: StageOption['backendStage'];
+  progress_percent: number;
+  comment: string | null;
 }
+
+interface BackendAssignment {
+  id: number;
+  topic_id: number;
+  progress_percent: number;
+  current_stage: StageOption['backendStage'];
+  current_stage_label: string;
+  status: 'active' | 'completed' | 'cancelled';
+  updated_at: string;
+  student: {
+    id: number;
+    full_name: string;
+    group_name: string;
+  };
+  topic: {
+    id: number;
+    title: string;
+  };
+  progress_history: BackendProgressHistory[];
+}
+
+const stages: StageOption[] = [
+  { label: 'В работе', progress: 25, backendStage: 'in_progress' },
+  { label: 'На проверке', progress: 50, backendStage: 'under_review' },
+  { label: 'Допуск к защите', progress: 100, backendStage: 'admitted_to_defense' },
+  { label: 'Завершено', progress: 100, backendStage: 'defended' },
+];
+
+const statusFor = (stage: BackendAssignment['current_stage']): WorkStatus => {
+  if (stage === 'defended') return 'completed';
+  if (stage === 'under_review' || stage === 'admitted_to_defense') return 'review';
+  return 'in_progress';
+};
+
+const stageLabel = (stage: BackendAssignment['current_stage']): string =>
+  stages.find((option) => option.backendStage === stage)?.label ?? 'В работе';
+
+function mapAssignment(assignment: BackendAssignment): DashboardStudent {
+  const history = assignment.progress_history.map((entry) => ({
+    stage: stageLabel(entry.current_stage),
+    date: entry.changed_at.slice(0, 10),
+    comment: entry.comment ?? undefined,
+  }));
+
+  return {
+    id: assignment.student.id,
+    assignmentId: assignment.id,
+    topicId: assignment.topic.id,
+    topic: assignment.topic.title,
+    stage: stageLabel(assignment.current_stage),
+    progress: assignment.progress_percent,
+    defenseDate: null,
+    history,
+    name: assignment.student.full_name,
+    group: assignment.student.group_name,
+    status: statusFor(assignment.current_stage),
+  };
+}
+
+function mapEvents(students: DashboardStudent[]): DashboardEvent[] {
+  return students.flatMap((student) =>
+    student.history.map((entry, index) => ({
+      id: student.assignmentId * 1000 + index,
+      studentId: student.id,
+      date: entry.date,
+      description: entry.comment || `Этап работы изменён: ${entry.stage}`,
+      status: student.status,
+    })),
+  ).sort((left, right) => right.date.localeCompare(left.date));
+}
+
 export async function fetchSupervisorDashboard(): Promise<SupervisorDashboard> {
-  return snapshot();
+  const assignments = await apiClient<BackendAssignment[]>('/supervisor/assignments');
+  const students = assignments
+    .filter((assignment) => assignment.status !== 'cancelled')
+    .map(mapAssignment);
+
+  return {
+    stages,
+    students,
+    attention: [],
+    events: mapEvents(students),
+  };
 }
+
 export async function updateStudentStage(
   assignmentId: number,
   input: StageChange,
 ): Promise<SupervisorDashboard> {
-  const student = data.students.find((s) => s.assignmentId === assignmentId);
-  if (!student) throw new Error("Студент не найден");
-  const option = data.stages.find((s) => s.label === input.stage);
-  if (
-    !option ||
-    data.stages.findIndex((s) => s.label === student.stage) >=
-      data.stages.indexOf(option)
-  )
-    throw new Error("Недопустимый переход");
-  const request = toProgressRequest(option, input);
-  if ((request.comment?.length ?? 0) > 2000)
-    throw new Error("Комментарий слишком длинный");
-  const progress = request.progress_percent;
-  const id = student.id;
-  const change = {
-    stage: input.stage,
-    date: new Date().toLocaleDateString("sv-SE"),
-    comment: input.comment,
-    fileName: input.file?.name,
-  };
-  const previous = student.stage;
-  student.stage = change.stage;
-  student.progress = progress;
-  student.status =
-    option.backendStage === "defended"
-      ? "completed"
-      : option.backendStage === "under_review"
-        ? "review"
-        : "in_progress";
-  student.history.unshift(change);
-  data.events.unshift({
-    id: Math.max(0, ...data.events.map((e) => e.id)) + 1,
-    studentId: id,
-    date: change.date,
-    description: `Этап ВКР изменён: ${previous} → ${change.stage}`,
-    status: student.status,
+  const option = stages.find((stage) => stage.label === input.stage);
+  if (!option) throw new Error('Выберите допустимый этап работы');
+
+  await apiClient(`/supervisor/assignments/${assignmentId}/progress`, {
+    method: 'PATCH',
+    body: JSON.stringify(toProgressRequest(option, input)),
   });
-  data.attention = data.attention.filter(
-    (a) =>
-      a.studentId !== id ||
-      (student.status !== "completed" &&
-        progress < 100 &&
-        a.reasonCode !== "no_progress"),
-  );
-  return snapshot();
+
+  return fetchSupervisorDashboard();
 }

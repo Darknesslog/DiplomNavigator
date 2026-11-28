@@ -12,7 +12,7 @@ interface LayoutProps {
   unreadCount?: number;
   activeTab?: string;
   onTabChange?: (tab: string) => void;
-  userRole: 'student' | 'nauchruk' | 'zavkaf';
+  userRole: 'student' | 'nauchruk' | 'zavkaf' | 'admin';
   userName: string;
   onLogout?: () => void; // <-- ДОБАВИТЬ
 }
@@ -88,10 +88,18 @@ export const Layout: React.FC<LayoutProps> = ({
             Настройки
           </button>
           <div className="layout-profile">
-            <div className="profile-avatar">{userRole === 'zavkaf' ? 'ЕП' : 'АИ'}</div>
+            <div className="profile-avatar">
+              {userRole === 'zavkaf' ? 'ЗК' : userRole === 'admin' ? 'АД' : 'СТ'}
+            </div>
             <div className="profile-info">
               <span className="profile-name">{userName}</span>
-              <span className="profile-role">{userRole === 'zavkaf' ? 'Заведующий кафедрой' : 'Студент'}</span>
+              <span className="profile-role">
+                {userRole === 'zavkaf'
+                  ? 'Заведующий кафедрой'
+                  : userRole === 'admin'
+                    ? 'Администратор'
+                    : 'Студент'}
+              </span>
             </div>
           </div>
           <button

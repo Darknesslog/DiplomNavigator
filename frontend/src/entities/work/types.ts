@@ -8,7 +8,10 @@ export interface Work {
   status: 'active' | 'completed' | 'cancelled';
   progress_percent: number;
   current_stage: AssignmentStage;
+  progress_history?: unknown[];
   // Для UI
   title?: string;
   supervisor_name?: string;
+  topic?: { id: number; title: string; supervisor_id: number };
+  student?: { id: number; full_name: string; group_name: string };
 }

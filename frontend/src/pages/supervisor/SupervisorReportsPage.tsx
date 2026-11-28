@@ -5,7 +5,8 @@ import type {
   DashboardStudent,
   AttentionItem,
 } from "../../entities/work/supervisorDashboard";
-import { DataTable, Filter, Status, statusLabels } from "./SupervisorTables";
+import { DataTable, Filter, Status } from "./SupervisorTables";
+import { statusLabels } from "./supervisorStatus";
 import type { Column } from "./SupervisorTables";
 import "./SupervisorDashboardPage.css";
 import "./SupervisorStudentsPage.css";
